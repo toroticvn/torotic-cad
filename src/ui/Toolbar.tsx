@@ -14,6 +14,7 @@ export function Toolbar() {
   const loadProject = useViewportStore((s) => s.loadProject);
   const undo = useViewportStore((s) => s.undo);
   const redo = useViewportStore((s) => s.redo);
+  const evaluateDrawing = useViewportStore((s) => s.evaluateDrawing);
   const canUndo = useViewportStore((s) => s.past.length > 0);
   const canRedo = useViewportStore((s) => s.future.length > 0);
   const selectedId = useViewportStore((s) => s.selectedFeatureId);
@@ -87,6 +88,12 @@ export function Toolbar() {
         <button onClick={() => exportModel("step")} disabled={!hasSolid} title="Xuất STEP">⬇ STEP</button>
         <button onClick={() => exportModel("stl")} disabled={!hasSolid} title="Xuất STL (in 3D)">⬇ STL</button>
         <input ref={fileRef} type="file" accept=".json,application/json" style={{ display: "none" }} onChange={onOpenFile} />
+      </div>
+
+      <div className="tool-group">
+        <button className="ai-btn" onClick={evaluateDrawing} disabled={features.length === 0} title="Dùng AI để đọc & đánh giá bản vẽ">
+          ✨ AI đánh giá
+        </button>
       </div>
 
       <span className="mode-badge">Chế độ: {mode === "sketch" ? "Sketch" : "Model"}</span>

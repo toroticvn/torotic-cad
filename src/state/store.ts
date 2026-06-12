@@ -13,6 +13,7 @@ import { initKernel, rebuildSolids, exportSolid, ExtrudeError } from "../kernel/
 import { isSketch, producesSolid, consumedSketchIds, type BoolOp, type EdgePoint, type Feature } from "../features";
 import { buildSketchGroup } from "../sketch/render3d";
 import { findRegions } from "../kernel/profile";
+import { evaluateDrawing as requestEvaluation } from "../ai/api";
 
 export type SketchTool =
   | "select"
@@ -72,6 +73,14 @@ interface AppState {
   edgeSelect: { kind: "fillet" | "chamfer"; radius: number; points: EdgePoint[] } | null;
   featureError: string | null;
   busy: boolean;
+
+  // --- AI: review/evaluate the current drawing ---
+  aiOpen: boolean;
+  aiBusy: boolean;
+  aiResult: string | null;
+  aiError: string | null;
+  evaluateDrawing: () => Promise<void>;
+  closeAi: () => void;
 
   setViewport: (v: Viewport | null) => void;
   selectFeature: (id: string | null) => void;
@@ -167,6 +176,25 @@ export const useViewportStore = create<AppState>((set, get) => ({
   edgeSelect: null,
   featureError: null,
   busy: false,
+
+  aiOpen: false,
+  aiBusy: false,
+  aiResult: null,
+  aiError: null,
+
+  evaluateDrawing: async () => {
+    const vp = get().viewport;
+    if (!vp) return;
+    set({ aiOpen: true, aiBusy: true, aiResult: null, aiError: null });
+    try {
+      const image = vp.captureImage(1024);
+      const text = await requestEvaluation(image, get().features);
+      set({ aiResult: text, aiBusy: false });
+    } catch (e) {
+      set({ aiError: (e as Error).message, aiBusy: false });
+    }
+  },
+  closeAi: () => set({ aiOpen: false }),
 
   setViewport: (viewport) => set({ viewport }),
   selectFeature: (selectedFeatureId) => set({ selectedFeatureId }),

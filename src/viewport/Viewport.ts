@@ -74,7 +74,7 @@ export class Viewport {
     this.camera.position.set(120, 90, 120);
     this.camera.lookAt(0, 0, 0);
 
-    this.renderer = new THREE.WebGLRenderer({ antialias: true });
+    this.renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
     this.renderer.setPixelRatio(window.devicePixelRatio);
     this.renderer.setSize(w, h);
     container.appendChild(this.renderer.domElement);
@@ -124,6 +124,27 @@ export class Viewport {
     this.controls.update();
     this.renderer.render(this.scene, this.camera);
   };
+
+  /**
+   * Capture the current viewport as a PNG data URL, downscaled so the longest
+   * edge is at most `maxDim` px (keeps the image small for the AI vision call).
+   * Renders a fresh frame first; `preserveDrawingBuffer` makes the pixels readable.
+   */
+  captureImage(maxDim = 1024): string {
+    this.renderer.render(this.scene, this.camera);
+    const src = this.renderer.domElement;
+    const scale = Math.min(1, maxDim / Math.max(src.width, src.height));
+    const w = Math.max(1, Math.round(src.width * scale));
+    const h = Math.max(1, Math.round(src.height * scale));
+    const out = document.createElement("canvas");
+    out.width = w;
+    out.height = h;
+    const ctx = out.getContext("2d")!;
+    ctx.fillStyle = "#ffffff"; // flatten any transparency onto white
+    ctx.fillRect(0, 0, w, h);
+    ctx.drawImage(src, 0, 0, w, h);
+    return out.toDataURL("image/png");
+  }
 
   /** Replace all modeled geometry with the given objects. */
   setModel(objects: THREE.Object3D[]) {
