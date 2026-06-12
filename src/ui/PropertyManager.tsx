@@ -10,6 +10,7 @@ const TOOL_INFO: Record<SketchTool, { name: string; hint: string }> = {
   rect3: { name: "Chữ nhật 3 điểm", hint: "Click góc A → góc B (định một cạnh, góc bất kỳ) → di chuột định bề rộng rồi click." },
   parallelogram: { name: "Hình bình hành", hint: "Click A → B (cạnh thứ nhất) → C; góc thứ tư tự suy ra." },
   circle: { name: "Đường tròn", hint: "Click tâm rồi click để định bán kính." },
+  circle3: { name: "Đường tròn 3 điểm", hint: "Click 3 điểm nằm trên đường tròn." },
   polygon: { name: "Đa giác đều", hint: "Click tâm rồi click một đỉnh. Có sẵn đường tròn dựng (nét đứt)." },
   arcCenter: { name: "Cung theo tâm", hint: "Click tâm → click điểm đầu (định bán kính) → click điểm cuối." },
   arc3: { name: "Cung 3 điểm", hint: "Click điểm đầu → điểm cuối → di chuột để định độ phồng rồi click." },
@@ -163,6 +164,7 @@ function Relations() {
   const setSelection = useViewportStore((s) => s.setSelection);
 
   const fixSelection = useViewportStore((s) => s.fixSelection);
+  const toggleConstruction = useViewportStore((s) => s.toggleConstructionSelection);
 
   const lines = selection.filter((s) => s.kind === "line");
   const circles = selection.filter((s) => s.kind === "circle");
@@ -198,6 +200,7 @@ function Relations() {
     { label: "Tiếp tuyến", enabled: ents.length === 2 && curves.length >= 1 && lines.length <= 1, onClick: () => apply({ type: "tangent", e1: ref(ents[0]), e2: ref(ents[1]) }) },
     { label: "Cố định", enabled: selection.length >= 1, onClick: () => fixSelection(true) },
     { label: "Bỏ cố định", enabled: selection.length >= 1, onClick: () => fixSelection(false) },
+    { label: "Đổi nét dựng", enabled: ents.length >= 1, onClick: () => toggleConstruction() },
   ];
 
   return (

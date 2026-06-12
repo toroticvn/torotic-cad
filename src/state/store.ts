@@ -28,6 +28,7 @@ export type SketchTool =
   | "rect3"
   | "parallelogram"
   | "circle"
+  | "circle3"
   | "polygon"
   | "arcCenter"
   | "arc3"
@@ -173,6 +174,8 @@ interface AppState {
   offsetSelection: (outward: boolean) => void;
   /** Fix/unfix selected points (and endpoints/centers of selected entities). */
   fixSelection: (fixed: boolean) => void;
+  /** Toggle construction (reference) flag on the selected entities. */
+  toggleConstructionSelection: () => void;
   /** Mirror selected entities across a selected line (last selected line = axis). */
   mirrorSelection: () => void;
   /** Duplicate selected entities in a linear array (uses pattern params). */
@@ -639,6 +642,26 @@ export const useViewportStore = create<AppState>((set, get) => ({
         }
       }
       for (const p of s.points) if (ids.has(p.id)) p.fixed = fixed ? true : undefined;
+    });
+    get().setSelection([]);
+  },
+
+  toggleConstructionSelection: () => {
+    const sel = get().selection;
+    if (sel.length === 0) return;
+    get().applyChange((s) => {
+      for (const r of sel) {
+        if (r.kind === "line") {
+          const l = s.lines.find((x) => x.id === r.id);
+          if (l) l.construction = !l.construction;
+        } else if (r.kind === "circle") {
+          const c = s.circles.find((x) => x.id === r.id);
+          if (c) c.construction = !c.construction;
+        } else if (r.kind === "arc") {
+          const a = s.arcs.find((x) => x.id === r.id);
+          if (a) a.construction = !a.construction;
+        }
+      }
     });
     get().setSelection([]);
   },

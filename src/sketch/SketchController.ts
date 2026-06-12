@@ -250,6 +250,8 @@ export class SketchController {
         return this.drawParallelogram(p);
       case "circle":
         return this.drawCircle(p);
+      case "circle3":
+        return this.drawCircle3(p);
       case "polygon":
         return this.drawPolygon(p);
       case "arcCenter":
@@ -547,6 +549,24 @@ export class SketchController {
       if (r > 0) s.circles.push({ id: uid("cir"), center: centerId, r, construction: cons || undefined });
     });
     this.pendingPointId = null;
+  }
+
+  // 3-point circle: click three points on the circumference.
+  private drawCircle3(p: Point2) {
+    if (this.chain.length < 2) return this.pushChainPoint(p);
+    const cons = this.construction;
+    useViewportStore.getState().applyChange((s) => {
+      const a = this.chainPt(s, 0);
+      const b = this.chainPt(s, 1);
+      const center = circumcenter(a, b, p);
+      if (!center) return;
+      const r = Math.hypot(a.x - center.x, a.y - center.y);
+      if (r <= 0) return;
+      const cid = this.getOrCreatePoint(s, center);
+      s.circles.push({ id: uid("cir"), center: cid, r, construction: cons || undefined });
+      pruneOrphanPoints(s); // drop the transient circumference points
+    });
+    this.chain = [];
   }
 
   private drawPolygon(p: Point2) {
@@ -911,6 +931,14 @@ export class SketchController {
       const g = new THREE.Group();
       for (let i = 0; i < 4; i++) g.add(this.line3(corners[i], corners[(i + 1) % 4], C_PREVIEW));
       return g;
+    }
+    if (this.tool === "circle3") {
+      const a = cp(0)!;
+      if (this.chain.length === 1) return this.line3(a, p, C_PREVIEW);
+      const b = cp(1)!;
+      const center = circumcenter(a, b, p);
+      if (!center) return this.line3(a, b, C_PREVIEW);
+      return this.circle3(center, Math.hypot(a.x - center.x, a.y - center.y), C_PREVIEW);
     }
     if (this.tool === "ellipse") {
       const center = cp(0)!;

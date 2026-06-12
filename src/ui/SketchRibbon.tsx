@@ -69,7 +69,14 @@ export function SketchRibbon() {
             { tool: "parallelogram", label: "Hình bình hành", icon: "▱", sub: "A→B→C" },
           ]}
         />
-        <Btn def={{ tool: "circle", label: "Tròn", icon: "◯" }} active={tool === "circle"} onClick={setTool} />
+        <Flyout
+          current={tool}
+          onPick={setTool}
+          variants={[
+            { tool: "circle", label: "Tròn (tâm)", icon: "◯", sub: "tâm → bán kính" },
+            { tool: "circle3", label: "Tròn 3 điểm", icon: "◍", sub: "qua 3 điểm" },
+          ]}
+        />
         <Btn def={{ tool: "ellipse", label: "Ellipse", icon: "⬭" }} active={tool === "ellipse"} onClick={setTool} />
         <Btn def={{ tool: "spline", label: "Spline", icon: "∿" }} active={tool === "spline"} onClick={setTool} />
         <Btn def={{ tool: "polygon", label: "Đa giác", icon: "⬡" }} active={tool === "polygon"} onClick={setTool} />
