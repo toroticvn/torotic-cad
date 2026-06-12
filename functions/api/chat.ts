@@ -12,6 +12,13 @@
 
 interface Env {
   ANTHROPIC_API_KEY?: string;
+  /**
+   * Optional Cloudflare AI Gateway base URL for Anthropic, e.g.
+   * https://gateway.ai.cloudflare.com/v1/<account_id>/<gateway>/anthropic
+   * Routing through AI Gateway avoids the 403 "Request not allowed" that happens
+   * when Cloudflare's edge egresses to Anthropic via a restricted region (HK).
+   */
+  CF_AI_GATEWAY?: string;
 }
 
 interface ChatTurn {
@@ -94,9 +101,12 @@ export const onRequestPost = async (context: { request: Request; env: Env }): Pr
     return { role: m.role, content: m.text };
   });
 
+  const base = env.CF_AI_GATEWAY?.replace(/\/+$/, "");
+  const endpoint = base ? `${base}/v1/messages` : "https://api.anthropic.com/v1/messages";
+
   let resp: Response;
   try {
-    resp = await fetch("https://api.anthropic.com/v1/messages", {
+    resp = await fetch(endpoint, {
       method: "POST",
       headers: {
         "x-api-key": env.ANTHROPIC_API_KEY,
