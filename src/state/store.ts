@@ -13,8 +13,9 @@ import { initKernel, rebuildSolids, exportSolid, ExtrudeError } from "../kernel/
 import { isSketch, producesSolid, consumedSketchIds, type BoolOp, type EdgePoint, type Feature } from "../features";
 import { buildSketchGroup } from "../sketch/render3d";
 import { findRegions } from "../kernel/profile";
-import { chat as chatRequest, type ChatTurn } from "../ai/api";
+import { chat as chatRequest, generateDesign as requestDesign, type ChatTurn } from "../ai/api";
 import { buildClaudePrompt } from "../ai/prompt";
+import { designToFeatures } from "../ai/design";
 
 export type SketchTool =
   | "select"
@@ -87,6 +88,14 @@ interface AppState {
   evaluateDrawing: () => Promise<void>;
   /** Manual path: export image + prompt to use with a claude.ai subscription. */
   askClaudeAi: () => void;
+
+  // --- AI draw: generate a model from a text description ---
+  aiDrawOpen: boolean;
+  aiDrawBusy: boolean;
+  aiDrawError: string | null;
+  openAiDraw: () => void;
+  closeAiDraw: () => void;
+  generateDesign: (prompt: string) => Promise<void>;
 
   /** Generic info modal (string = message shown; null = hidden). */
   notice: string | null;
@@ -235,6 +244,27 @@ export const useViewportStore = create<AppState>((set, get) => ({
       notice:
         "Đã tải ảnh 'torotic-banve.png' và copy nội dung câu hỏi.\n\nSang tab claude.ai vừa mở:\n1) Dán nội dung (Ctrl+V).\n2) Đính kèm ảnh 'torotic-banve.png' (vừa tải về).\n3) Gửi — Claude sẽ đánh giá bằng gói Pro/Max của bạn.",
     });
+  },
+
+  aiDrawOpen: false,
+  aiDrawBusy: false,
+  aiDrawError: null,
+  openAiDraw: () => set({ aiDrawOpen: true, aiDrawError: null }),
+  closeAiDraw: () => set({ aiDrawOpen: false }),
+  generateDesign: async (prompt) => {
+    const p = prompt.trim();
+    if (!p || get().aiDrawBusy) return;
+    set({ aiDrawBusy: true, aiDrawError: null });
+    try {
+      const design = await requestDesign(p);
+      const feats = designToFeatures(design);
+      if (feats.length === 0) throw new Error("AI chưa tạo được hình từ mô tả này. Thử mô tả cụ thể hơn (kích thước, hình dạng).");
+      pushHistory(get, set);
+      set({ features: feats, selectedFeatureId: null, mode: "model", sketch: null, aiDrawBusy: false, aiDrawOpen: false });
+      await rebuild(get, set);
+    } catch (e) {
+      set({ aiDrawError: (e as Error).message, aiDrawBusy: false });
+    }
   },
 
   notice: null,

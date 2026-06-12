@@ -16,6 +16,7 @@ export function Toolbar() {
   const redo = useViewportStore((s) => s.redo);
   const evaluateDrawing = useViewportStore((s) => s.evaluateDrawing);
   const openChat = useViewportStore((s) => s.openChat);
+  const openAiDraw = useViewportStore((s) => s.openAiDraw);
   const askClaudeAi = useViewportStore((s) => s.askClaudeAi);
   const canUndo = useViewportStore((s) => s.past.length > 0);
   const canRedo = useViewportStore((s) => s.future.length > 0);
@@ -93,6 +94,9 @@ export function Toolbar() {
       </div>
 
       <div className="tool-group">
+        <button className="ai-btn" onClick={openAiDraw} title="Nhập mô tả, AI tự dựng khối 3D">
+          🪄 AI vẽ
+        </button>
         <button className="ai-btn" onClick={openChat} title="Mở trợ lý AI (Claude) để hỏi đáp về mô hình">
           💬 Trợ lý AI
         </button>

@@ -1,4 +1,5 @@
 import type { Feature } from "../features";
+import type { Design } from "./design";
 
 export interface ChatTurn {
   role: "user" | "assistant";
@@ -36,4 +37,32 @@ export async function chat(messages: ChatTurn[], image: string, features: Featur
     throw new Error(data.error || `Máy chủ lỗi (${resp.status}).`);
   }
   return data.text || "(Không có nội dung.)";
+}
+
+/** Ask Claude (via /api/generate, tool use) to design a 3D part from a description. */
+export async function generateDesign(prompt: string): Promise<Design> {
+  let resp: Response;
+  try {
+    resp = await fetch("/api/generate", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ prompt }),
+    });
+  } catch (e) {
+    throw new Error("Không kết nối được máy chủ AI: " + (e as Error).message);
+  }
+  let data: { design?: Design; error?: string } = {};
+  try {
+    data = await resp.json();
+  } catch {
+    // handled below
+  }
+  if (!resp.ok) {
+    if (resp.status === 404) {
+      throw new Error("Không tìm thấy /api/generate. Tính năng AI chỉ chạy trên bản đã deploy.");
+    }
+    throw new Error(data.error || `Máy chủ lỗi (${resp.status}).`);
+  }
+  if (!data.design) throw new Error("AI không trả về thiết kế.");
+  return data.design;
 }
