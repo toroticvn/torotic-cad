@@ -2,18 +2,19 @@
  * Cloudflare Pages Function — POST /api/evaluate
  *
  * Receives a rendered image of the viewport + the parametric feature-tree JSON
- * and asks Claude (vision) to review the 3D design. The Anthropic API key lives
- * only in the server-side env binding ANTHROPIC_API_KEY — it is never sent to
- * the browser.
+ * and asks an AI (vision) to review the 3D design. Runs on the Cloudflare Workers
+ * edge runtime, so we call provider REST APIs with raw fetch (no SDK bundling).
  *
- * We call the Messages API over raw fetch (not the SDK) on purpose: this runs on
- * the Cloudflare Workers edge runtime, where a dependency-free request is the most
- * robust choice and avoids bundling the SDK into the function. The JSON wire shape
- * below is the documented Messages API format.
+ * Provider is chosen by which key is configured (keys stay server-side, never
+ * sent to the browser):
+ *   - ANTHROPIC_API_KEY set -> Claude (claude-opus-4-8, paid, best quality)
+ *   - else GEMINI_API_KEY set -> Google Gemini (gemini-2.0-flash, free tier)
+ * Add ANTHROPIC_API_KEY later to upgrade with no code change.
  */
 
 interface Env {
-  ANTHROPIC_API_KEY: string;
+  ANTHROPIC_API_KEY?: string;
+  GEMINI_API_KEY?: string;
 }
 
 interface EvaluateBody {
@@ -21,7 +22,8 @@ interface EvaluateBody {
   features?: unknown; // the feature-tree array from the store
 }
 
-const MODEL = "claude-opus-4-8";
+const CLAUDE_MODEL = "claude-opus-4-8";
+const GEMINI_MODEL = "gemini-2.0-flash";
 
 const SYSTEM_PROMPT = `Bạn là kỹ sư cơ khí cao cấp, chuyên đánh giá bản vẽ/khối 3D theo tư duy SolidWorks và DFM (Design for Manufacturing).
 
@@ -55,15 +57,106 @@ function json(data: unknown, status = 200): Response {
   });
 }
 
-export const onRequestPost = async (context: {
-  request: Request;
-  env: Env;
-}): Promise<Response> => {
+/** Parse a data URL into { mediaType, base64 }, or null. */
+function parseDataUrl(s?: string): { mediaType: string; base64: string } | null {
+  if (!s) return null;
+  const m = /^data:(image\/(?:png|jpeg|webp));base64,(.+)$/s.exec(s);
+  return m ? { mediaType: m[1], base64: m[2] } : null;
+}
+
+async function callClaude(
+  key: string,
+  img: { mediaType: string; base64: string } | null,
+  userText: string,
+): Promise<string> {
+  const content: Array<Record<string, unknown>> = [];
+  if (img) {
+    content.push({ type: "image", source: { type: "base64", media_type: img.mediaType, data: img.base64 } });
+  }
+  content.push({ type: "text", text: userText });
+
+  const resp = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST",
+    headers: {
+      "x-api-key": key,
+      "anthropic-version": "2023-06-01",
+      "content-type": "application/json",
+    },
+    body: JSON.stringify({
+      model: CLAUDE_MODEL,
+      max_tokens: 4000,
+      thinking: { type: "adaptive" },
+      output_config: { effort: "medium" },
+      system: SYSTEM_PROMPT,
+      messages: [{ role: "user", content }],
+    }),
+  });
+
+  if (!resp.ok) {
+    const detail = await resp.text().catch(() => "");
+    throw new Error(`Claude API lỗi (${resp.status}). ${detail.slice(0, 400)}`);
+  }
+  const data = (await resp.json()) as {
+    stop_reason?: string;
+    content?: Array<{ type: string; text?: string }>;
+  };
+  if (data.stop_reason === "refusal") throw new Error("Claude từ chối xử lý yêu cầu này.");
+  return (data.content ?? [])
+    .filter((b) => b.type === "text" && typeof b.text === "string")
+    .map((b) => b.text as string)
+    .join("\n")
+    .trim();
+}
+
+async function callGemini(
+  key: string,
+  img: { mediaType: string; base64: string } | null,
+  userText: string,
+): Promise<string> {
+  const parts: Array<Record<string, unknown>> = [];
+  if (img) parts.push({ inlineData: { mimeType: img.mediaType, data: img.base64 } });
+  parts.push({ text: userText });
+
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
+  const resp = await fetch(url, {
+    method: "POST",
+    headers: { "x-goog-api-key": key, "content-type": "application/json" },
+    body: JSON.stringify({
+      systemInstruction: { parts: [{ text: SYSTEM_PROMPT }] },
+      contents: [{ role: "user", parts }],
+      generationConfig: { maxOutputTokens: 4000 },
+    }),
+  });
+
+  if (!resp.ok) {
+    const detail = await resp.text().catch(() => "");
+    throw new Error(`Gemini API lỗi (${resp.status}). ${detail.slice(0, 400)}`);
+  }
+  const data = (await resp.json()) as {
+    promptFeedback?: { blockReason?: string };
+    candidates?: Array<{ content?: { parts?: Array<{ text?: string }> }; finishReason?: string }>;
+  };
+  if (data.promptFeedback?.blockReason) {
+    throw new Error("Gemini chặn yêu cầu: " + data.promptFeedback.blockReason);
+  }
+  const text = (data.candidates?.[0]?.content?.parts ?? [])
+    .map((p) => p.text ?? "")
+    .join("")
+    .trim();
+  return text;
+}
+
+export const onRequestPost = async (context: { request: Request; env: Env }): Promise<Response> => {
   const { request, env } = context;
 
-  if (!env.ANTHROPIC_API_KEY) {
+  const hasClaude = !!env.ANTHROPIC_API_KEY;
+  const hasGemini = !!env.GEMINI_API_KEY;
+  if (!hasClaude && !hasGemini) {
     return json(
-      { error: "Máy chủ chưa cấu hình ANTHROPIC_API_KEY. Thêm biến môi trường này trong Cloudflare Pages → Settings → Environment variables rồi deploy lại." },
+      {
+        error:
+          "Máy chủ chưa cấu hình API key. Thêm GEMINI_API_KEY (miễn phí, aistudio.google.com) hoặc ANTHROPIC_API_KEY trong Cloudflare Pages → Settings → Variables rồi deploy lại.",
+      },
       500,
     );
   }
@@ -75,68 +168,16 @@ export const onRequestPost = async (context: {
     return json({ error: "Body JSON không hợp lệ." }, 400);
   }
 
-  const content: Array<Record<string, unknown>> = [];
-
-  if (body.image) {
-    const m = /^data:(image\/(?:png|jpeg|webp));base64,(.+)$/s.exec(body.image);
-    if (m) {
-      content.push({
-        type: "image",
-        source: { type: "base64", media_type: m[1], data: m[2] },
-      });
-    }
-  }
-
+  const img = parseDataUrl(body.image);
   const featuresJson = JSON.stringify(body.features ?? [], null, 2);
-  content.push({
-    type: "text",
-    text: `Đây là cây tính năng (feature tree) của khối:\n\n<feature_tree>\n${featuresJson}\n</feature_tree>\n\nHãy đánh giá thiết kế dựa trên ảnh render ở trên và cây tính năng này.`,
-  });
+  const userText = `Đây là cây tính năng (feature tree) của khối:\n\n<feature_tree>\n${featuresJson}\n</feature_tree>\n\nHãy đánh giá thiết kế dựa trên ảnh render ở trên và cây tính năng này.`;
 
-  let apiResp: Response;
   try {
-    apiResp = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "x-api-key": env.ANTHROPIC_API_KEY,
-        "anthropic-version": "2023-06-01",
-        "content-type": "application/json",
-      },
-      body: JSON.stringify({
-        model: MODEL,
-        max_tokens: 4000,
-        thinking: { type: "adaptive" },
-        output_config: { effort: "medium" },
-        system: SYSTEM_PROMPT,
-        messages: [{ role: "user", content }],
-      }),
-    });
+    const text = hasClaude
+      ? await callClaude(env.ANTHROPIC_API_KEY as string, img, userText)
+      : await callGemini(env.GEMINI_API_KEY as string, img, userText);
+    return json({ text: text || "(Không có nội dung trả về.)", provider: hasClaude ? "claude" : "gemini" });
   } catch (e) {
-    return json({ error: "Không gọi được Anthropic API: " + (e as Error).message }, 502);
+    return json({ error: (e as Error).message }, 502);
   }
-
-  if (!apiResp.ok) {
-    const detail = await apiResp.text().catch(() => "");
-    return json(
-      { error: `Anthropic API lỗi (${apiResp.status}). ${detail.slice(0, 500)}` },
-      502,
-    );
-  }
-
-  const data = (await apiResp.json()) as {
-    stop_reason?: string;
-    content?: Array<{ type: string; text?: string }>;
-  };
-
-  if (data.stop_reason === "refusal") {
-    return json({ error: "Mô hình từ chối xử lý yêu cầu này." }, 422);
-  }
-
-  const text = (data.content ?? [])
-    .filter((b) => b.type === "text" && typeof b.text === "string")
-    .map((b) => b.text as string)
-    .join("\n")
-    .trim();
-
-  return json({ text: text || "(Không có nội dung trả về.)" });
 };

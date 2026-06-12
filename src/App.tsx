@@ -12,6 +12,7 @@ import { FilletPropertyManager } from "./ui/FilletPropertyManager";
 import { ExtrudePropertyManager } from "./ui/ExtrudePropertyManager";
 import { StatusBar } from "./ui/StatusBar";
 import { AiPanel } from "./ui/AiPanel";
+import { Notice } from "./ui/Notice";
 import { ViewportCanvas } from "./viewport/ViewportCanvas";
 import { useViewportStore } from "./state/store";
 
@@ -47,6 +48,7 @@ export function App() {
       </div>
       <StatusBar />
       <AiPanel />
+      <Notice />
     </div>
   );
 }

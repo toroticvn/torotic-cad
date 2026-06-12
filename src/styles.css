@@ -807,3 +807,10 @@ body,
   opacity: 0.45;
   cursor: not-allowed;
 }
+.notice-card {
+  width: min(440px, 90vw);
+}
+.notice-body {
+  white-space: pre-wrap;
+  font-size: 13.5px;
+}

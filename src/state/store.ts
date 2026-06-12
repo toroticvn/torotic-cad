@@ -14,6 +14,7 @@ import { isSketch, producesSolid, consumedSketchIds, type BoolOp, type EdgePoint
 import { buildSketchGroup } from "../sketch/render3d";
 import { findRegions } from "../kernel/profile";
 import { evaluateDrawing as requestEvaluation } from "../ai/api";
+import { buildClaudePrompt } from "../ai/prompt";
 
 export type SketchTool =
   | "select"
@@ -81,6 +82,12 @@ interface AppState {
   aiError: string | null;
   evaluateDrawing: () => Promise<void>;
   closeAi: () => void;
+  /** Manual path: export image + prompt to use with a claude.ai subscription. */
+  askClaudeAi: () => void;
+
+  /** Generic info modal (string = message shown; null = hidden). */
+  notice: string | null;
+  dismissNotice: () => void;
 
   setViewport: (v: Viewport | null) => void;
   selectFeature: (id: string | null) => void;
@@ -195,6 +202,29 @@ export const useViewportStore = create<AppState>((set, get) => ({
     }
   },
   closeAi: () => set({ aiOpen: false }),
+
+  askClaudeAi: () => {
+    const vp = get().viewport;
+    if (!vp) return;
+    // 1. Download the rendered image so the user can attach it in claude.ai.
+    const image = vp.captureImage(1280);
+    const a = document.createElement("a");
+    a.href = image;
+    a.download = "torotic-banve.png";
+    a.click();
+    // 2. Copy the prompt (instructions + feature JSON) to the clipboard.
+    const prompt = buildClaudePrompt(get().features);
+    navigator.clipboard?.writeText(prompt).catch(() => {});
+    // 3. Open claude.ai in a new tab and tell the user what to do.
+    window.open("https://claude.ai/new", "_blank", "noopener");
+    set({
+      notice:
+        "Đã tải ảnh 'torotic-banve.png' và copy nội dung câu hỏi.\n\nSang tab claude.ai vừa mở:\n1) Dán nội dung (Ctrl+V).\n2) Đính kèm ảnh 'torotic-banve.png' (vừa tải về).\n3) Gửi — Claude sẽ đánh giá bằng gói Pro/Max của bạn.",
+    });
+  },
+
+  notice: null,
+  dismissNotice: () => set({ notice: null }),
 
   setViewport: (viewport) => set({ viewport }),
   selectFeature: (selectedFeatureId) => set({ selectedFeatureId }),

@@ -8,15 +8,27 @@ Nút **✨ AI đánh giá** trên thanh công cụ gửi ảnh render của view
 - **Backend** = Cloudflare **Pages Function** [functions/api/evaluate.ts](../functions/api/evaluate.ts): chạy trên edge cùng project Pages, gọi Anthropic Messages API bằng model `claude-opus-4-8` (adaptive thinking, vision).
 - **API key** chỉ nằm ở biến môi trường server-side `ANTHROPIC_API_KEY` — **không bao giờ** gửi xuống trình duyệt.
 
-## Cấu hình (một lần)
+## Hai cách dùng AI
 
-1. Lấy API key tại https://console.anthropic.com → **API keys** → *Create Key*.
-2. Vào **dash.cloudflare.com → Workers & Pages → torotic-cad → Settings → Variables and Secrets** (Environment variables).
-3. Thêm biến cho **Production** (và cả **Preview** nếu muốn bản preview chạy được):
-   - Name: `ANTHROPIC_API_KEY`
-   - Value: dán key vừa tạo
-   - Nên chọn kiểu **Secret** (Encrypt) để ẩn giá trị.
-4. **Save**, rồi **deploy lại** (Deployments → Retry deployment, hoặc push 1 commit mới) để function nhận biến mới.
+### Cách 1 — Nút "✨ AI đánh giá" (tự động, qua backend)
+Backend tự chọn nhà cung cấp theo key đã cấu hình:
+- Có `ANTHROPIC_API_KEY` → dùng **Claude** (`claude-opus-4-8`, trả phí, chất lượng cao nhất).
+- Không có thì dùng `GEMINI_API_KEY` → **Google Gemini** (`gemini-2.0-flash`, **free tier**).
+
+Thêm `ANTHROPIC_API_KEY` sau là tự nâng cấp lên Claude, không phải sửa code.
+
+### Cách 2 — Nút "📋 Hỏi Claude.ai" (thủ công, dùng gói Pro/Max, $0 thêm)
+Bấm nút → app tải ảnh `torotic-banve.png` + copy sẵn câu hỏi (kèm feature JSON) vào clipboard + mở claude.ai. Bạn dán nội dung, đính ảnh, gửi. Không cần API key, không tốn thêm — dùng đúng gói Claude.ai bạn đã có. Chạy được cả khi mở web local. (Chỉ phục vụ chính bạn, vì gói cá nhân.)
+
+## Cấu hình key cho Cách 1 (một lần)
+
+**Miễn phí (Gemini):**
+1. Vào https://aistudio.google.com/apikey → *Create API key* (miễn phí, không cần thẻ).
+2. **dash.cloudflare.com → Workers & Pages → torotic-cad → Settings → Variables and Secrets**.
+3. Add variable: Name `GEMINI_API_KEY`, Value = key, kiểu **Secret/Encrypt**, áp dụng **Production**.
+4. **Save** → **Deployments → Retry deployment**.
+
+**Trả phí, chất lượng cao hơn (Claude):** làm y hệt nhưng Name = `ANTHROPIC_API_KEY`, key lấy ở https://console.anthropic.com → API keys. Khi có cả hai, backend ưu tiên Claude.
 
 ## Lưu ý
 
