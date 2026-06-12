@@ -3,8 +3,12 @@ import { useViewportStore, type SketchTool } from "../state/store";
 const TOOL_INFO: Record<SketchTool, { name: string; hint: string }> = {
   select: { name: "Chọn", hint: "Click để chọn đối tượng (tối đa 2) rồi thêm quan hệ bên dưới." },
   line: { name: "Đường (Line)", hint: "Click điểm đầu rồi điểm cuối; vẽ nối tiếp. Chuột phải/Esc để dừng. Gợi ý ngang/dọc/trùng điểm tự bật." },
+  centerline: { name: "Đường tâm (Centerline)", hint: "Vẽ như đường thường nhưng là nét dựng (construction) — dùng làm trục, không bị đùn." },
+  point: { name: "Điểm (Point)", hint: "Click để đặt một điểm tham chiếu." },
   rectCorner: { name: "Chữ nhật theo góc", hint: "Click hai góc đối nhau." },
   rectCenter: { name: "Chữ nhật theo tâm", hint: "Click tâm rồi click một góc." },
+  rect3: { name: "Chữ nhật 3 điểm", hint: "Click góc A → góc B (định một cạnh, góc bất kỳ) → di chuột định bề rộng rồi click." },
+  parallelogram: { name: "Hình bình hành", hint: "Click A → B (cạnh thứ nhất) → C; góc thứ tư tự suy ra." },
   circle: { name: "Đường tròn", hint: "Click tâm rồi click để định bán kính." },
   polygon: { name: "Đa giác đều", hint: "Click tâm rồi click một đỉnh. Có sẵn đường tròn dựng (nét đứt)." },
   arcCenter: { name: "Cung theo tâm", hint: "Click tâm → click điểm đầu (định bán kính) → click điểm cuối." },
@@ -13,6 +17,7 @@ const TOOL_INFO: Record<SketchTool, { name: string; hint: string }> = {
   slot: { name: "Slot (rãnh)", hint: "Click tâm đầu 1 → tâm đầu 2 → di chuột định bề rộng rồi click." },
   trim: { name: "Trim (cắt)", hint: "Click vào đối tượng (đường/cung/tròn) để xoá nó." },
   fillet: { name: "Sketch Fillet (bo góc)", hint: "Click vào điểm góc chung của 2 đường để bo cung tiếp tuyến." },
+  sketchChamfer: { name: "Sketch Chamfer (vát góc)", hint: "Click vào điểm góc chung của 2 đường để vát thẳng theo khoảng đặt bên dưới." },
   dimension: { name: "Smart Dimension", hint: "Click một cạnh để gán chiều dài, đường tròn để gán bán kính, hoặc 2 điểm để gán khoảng cách." },
 };
 
@@ -54,9 +59,9 @@ export function PropertyManager() {
             />
           </label>
         )}
-        {tool === "fillet" && (
+        {(tool === "fillet" || tool === "sketchChamfer") && (
           <label className="pm-option">
-            Bán kính bo
+            {tool === "fillet" ? "Bán kính bo" : "Khoảng vát"}
             <input
               type="number"
               min={0.1}

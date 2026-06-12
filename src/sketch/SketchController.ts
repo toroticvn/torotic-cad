@@ -174,6 +174,7 @@ export class SketchController {
     if (this.tool === "dimension") return this.handleDimension(raw);
     if (this.tool === "trim") return this.handleTrim(raw);
     if (this.tool === "fillet") return this.handleFillet(raw);
+    if (this.tool === "sketchChamfer") return this.handleChamfer(raw);
 
     const { p, infer } = this.computeSnap(raw);
     this.handleDraw(p, infer);
@@ -182,7 +183,12 @@ export class SketchController {
   private onPointerMove = (e: PointerEvent) => {
     if (!this.plane) return;
     const raw = this.pointerToPlane(e);
-    const noDraw = this.tool === "select" || this.tool === "dimension" || this.tool === "trim" || this.tool === "fillet";
+    const noDraw =
+      this.tool === "select" ||
+      this.tool === "dimension" ||
+      this.tool === "trim" ||
+      this.tool === "fillet" ||
+      this.tool === "sketchChamfer";
     if (!raw || noDraw) {
       this.cursor = raw ? { x: snap(raw.x), y: snap(raw.y) } : null;
       this.activeInfer = null;
@@ -224,11 +230,18 @@ export class SketchController {
   private handleDraw(p: Point2, infer: Inference | null) {
     switch (this.tool) {
       case "line":
+      case "centerline":
         return this.drawLine(p, infer);
+      case "point":
+        return this.drawPoint(p);
       case "rectCorner":
         return this.drawRect(p, false);
       case "rectCenter":
         return this.drawRect(p, true);
+      case "rect3":
+        return this.drawRect3(p);
+      case "parallelogram":
+        return this.drawParallelogram(p);
       case "circle":
         return this.drawCircle(p);
       case "polygon":
@@ -242,6 +255,52 @@ export class SketchController {
       case "slot":
         return this.drawSlot(p);
     }
+  }
+
+  /** Standalone sketch point (reference geometry / dimension anchor). */
+  private drawPoint(p: Point2) {
+    useViewportStore.getState().applyChange((s) => {
+      this.getOrCreatePoint(s, p);
+    });
+  }
+
+  // 3-point rectangle: corner A → corner B (one edge, any angle) → width point C.
+  private drawRect3(p: Point2) {
+    if (this.chain.length < 2) return this.pushChainPoint(p);
+    const cons = this.construction;
+    useViewportStore.getState().applyChange((s) => {
+      const a = this.chainPt(s, 0);
+      const b = this.chainPt(s, 1);
+      const dx = b.x - a.x;
+      const dy = b.y - a.y;
+      const len = Math.hypot(dx, dy);
+      if (len < 1e-6) return;
+      const nx = -dy / len; // unit normal to AB
+      const ny = dx / len;
+      const w = nx * (p.x - a.x) + ny * (p.y - a.y); // signed width
+      if (Math.abs(w) < 1e-6) return;
+      const c = { x: b.x + nx * w, y: b.y + ny * w };
+      const d = { x: a.x + nx * w, y: a.y + ny * w };
+      const ids = [a, b, c, d].map((q) => this.getOrCreatePoint(s, q));
+      for (let i = 0; i < 4; i++)
+        s.lines.push({ id: uid("ln"), p1: ids[i], p2: ids[(i + 1) % 4], construction: cons || undefined });
+    });
+    this.chain = [];
+  }
+
+  // Parallelogram: A → B (first edge) → C; fourth corner D = A + (C − B).
+  private drawParallelogram(p: Point2) {
+    if (this.chain.length < 2) return this.pushChainPoint(p);
+    const cons = this.construction;
+    useViewportStore.getState().applyChange((s) => {
+      const a = this.chainPt(s, 0);
+      const b = this.chainPt(s, 1);
+      const d = { x: a.x + (p.x - b.x), y: a.y + (p.y - b.y) };
+      const ids = [a, b, { x: p.x, y: p.y }, d].map((q) => this.getOrCreatePoint(s, q));
+      for (let i = 0; i < 4; i++)
+        s.lines.push({ id: uid("ln"), p1: ids[i], p2: ids[(i + 1) % 4], construction: cons || undefined });
+    });
+    this.chain = [];
   }
 
   /** Add a point id to the multi-click chain, creating the point if needed. */
@@ -359,7 +418,7 @@ export class SketchController {
 
   private drawLine(p: Point2, infer: Inference | null) {
     const store = useViewportStore.getState();
-    const cons = this.construction;
+    const cons = this.construction || this.tool === "centerline";
     if (!this.pendingPointId) {
       store.applyChange((s) => {
         this.pendingPointId = this.getOrCreatePoint(s, p);
@@ -578,6 +637,43 @@ export class SketchController {
     });
   }
 
+  // Sketch chamfer: click a corner shared by two lines → straight cut of setback `filletRadius`.
+  private handleChamfer(raw: Point2) {
+    const s = this.sketch;
+    if (!s) return;
+    const D = useViewportStore.getState().filletRadius; // reuse the radius field as setback distance
+    const corner = s.points.find((q) => Math.hypot(q.x - raw.x, q.y - raw.y) <= PICK_TOL);
+    if (!corner) return;
+    const incident = s.lines.filter((l) => l.p1 === corner.id || l.p2 === corner.id);
+    if (incident.length !== 2) return;
+
+    useViewportStore.getState().applyChange((s2) => {
+      const P = s2.points.find((q) => q.id === corner.id)!;
+      const [L1, L2] = incident.map((l) => s2.lines.find((x) => x.id === l.id)!);
+      const o1 = s2.points.find((q) => q.id === (L1.p1 === P.id ? L1.p2 : L1.p1))!;
+      const o2 = s2.points.find((q) => q.id === (L2.p1 === P.id ? L2.p2 : L2.p1))!;
+      const u1 = unit(o1.x - P.x, o1.y - P.y);
+      const u2 = unit(o2.x - P.x, o2.y - P.y);
+      if (!u1 || !u2) return;
+      const l1len = Math.hypot(o1.x - P.x, o1.y - P.y);
+      const l2len = Math.hypot(o2.x - P.x, o2.y - P.y);
+      if (D >= l1len || D >= l2len) return; // chamfer too large for these edges
+
+      const T1 = { x: P.x + u1.x * D, y: P.y + u1.y * D };
+      const T2 = { x: P.x + u2.x * D, y: P.y + u2.y * D };
+      const t1Id = this.getOrCreatePoint(s2, T1);
+      const t2Id = this.getOrCreatePoint(s2, T2);
+
+      if (L1.p1 === P.id) L1.p1 = t1Id;
+      else L1.p2 = t1Id;
+      if (L2.p1 === P.id) L2.p1 = t2Id;
+      else L2.p2 = t2Id;
+
+      s2.lines.push({ id: uid("ln"), p1: t1Id, p2: t2Id });
+      pruneOrphanPoints(s2);
+    });
+  }
+
   private pick(p: Point2): SelRef | null {
     const s = this.sketch;
     if (!s) return null;
@@ -732,6 +828,30 @@ export class SketchController {
     if (this.tool === "arcTangent") {
       const start = cp(0)!;
       return this.line3(start, p, C_PREVIEW);
+    }
+    if (this.tool === "rect3") {
+      const a = cp(0)!;
+      if (this.chain.length === 1) return this.line3(a, p, C_PREVIEW);
+      const b = cp(1)!;
+      const len = Math.hypot(b.x - a.x, b.y - a.y);
+      if (len < 1e-6) return this.line3(a, b, C_PREVIEW);
+      const nx = -(b.y - a.y) / len;
+      const ny = (b.x - a.x) / len;
+      const w = nx * (p.x - a.x) + ny * (p.y - a.y);
+      const corners = [a, b, { x: b.x + nx * w, y: b.y + ny * w }, { x: a.x + nx * w, y: a.y + ny * w }];
+      const g = new THREE.Group();
+      for (let i = 0; i < 4; i++) g.add(this.line3(corners[i], corners[(i + 1) % 4], C_PREVIEW));
+      return g;
+    }
+    if (this.tool === "parallelogram") {
+      const a = cp(0)!;
+      if (this.chain.length === 1) return this.line3(a, p, C_PREVIEW);
+      const b = cp(1)!;
+      const d = { x: a.x + (p.x - b.x), y: a.y + (p.y - b.y) };
+      const corners = [a, b, { x: p.x, y: p.y }, d];
+      const g = new THREE.Group();
+      for (let i = 0; i < 4; i++) g.add(this.line3(corners[i], corners[(i + 1) % 4], C_PREVIEW));
+      return g;
     }
     if (this.tool === "slot") {
       const c1 = cp(0)!;

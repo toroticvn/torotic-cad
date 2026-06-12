@@ -50,13 +50,23 @@ export function SketchRibbon() {
       <Sep />
 
       <Group title="Đối tượng">
-        <Btn def={{ tool: "line", label: "Đường", icon: "／" }} active={tool === "line"} onClick={setTool} />
+        <Flyout
+          current={tool}
+          onPick={setTool}
+          variants={[
+            { tool: "line", label: "Đường", icon: "／", sub: "line" },
+            { tool: "centerline", label: "Đường tâm", icon: "┄", sub: "construction" },
+          ]}
+        />
+        <Btn def={{ tool: "point", label: "Điểm", icon: "•" }} active={tool === "point"} onClick={setTool} />
         <Flyout
           current={tool}
           onPick={setTool}
           variants={[
             { tool: "rectCorner", label: "Chữ nhật (góc)", icon: "▭", sub: "2 góc đối" },
             { tool: "rectCenter", label: "Chữ nhật (tâm)", icon: "⊡", sub: "từ tâm" },
+            { tool: "rect3", label: "Chữ nhật 3 điểm", icon: "◇", sub: "góc nghiêng" },
+            { tool: "parallelogram", label: "Hình bình hành", icon: "▱", sub: "A→B→C" },
           ]}
         />
         <Btn def={{ tool: "circle", label: "Tròn", icon: "◯" }} active={tool === "circle"} onClick={setTool} />
@@ -78,6 +88,7 @@ export function SketchRibbon() {
       <Group title="Sửa">
         <Btn def={{ tool: "trim", label: "Trim", icon: "✂" }} active={tool === "trim"} onClick={setTool} />
         <Btn def={{ tool: "fillet", label: "Fillet", icon: "⌒" }} active={tool === "fillet"} onClick={setTool} />
+        <Btn def={{ tool: "sketchChamfer", label: "Chamfer", icon: "◣" }} active={tool === "sketchChamfer"} onClick={setTool} />
       </Group>
 
       <Sep />

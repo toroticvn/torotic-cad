@@ -20,8 +20,12 @@ import { designToFeatures } from "../ai/design";
 export type SketchTool =
   | "select"
   | "line"
+  | "centerline"
+  | "point"
   | "rectCorner"
   | "rectCenter"
+  | "rect3"
+  | "parallelogram"
   | "circle"
   | "polygon"
   | "arcCenter"
@@ -30,6 +34,7 @@ export type SketchTool =
   | "slot"
   | "trim"
   | "fillet"
+  | "sketchChamfer"
   | "dimension";
 
 /** A reference to a pickable entity in the sketch. */
