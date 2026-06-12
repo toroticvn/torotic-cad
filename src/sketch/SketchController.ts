@@ -175,6 +175,7 @@ export class SketchController {
     if (this.tool === "trim") return this.handleTrim(raw);
     if (this.tool === "fillet") return this.handleFillet(raw);
     if (this.tool === "sketchChamfer") return this.handleChamfer(raw);
+    if (this.tool === "offset") return this.handleOffset(raw);
 
     const { p, infer } = this.computeSnap(raw);
     this.handleDraw(p, infer);
@@ -188,7 +189,8 @@ export class SketchController {
       this.tool === "dimension" ||
       this.tool === "trim" ||
       this.tool === "fillet" ||
-      this.tool === "sketchChamfer";
+      this.tool === "sketchChamfer" ||
+      this.tool === "offset";
     if (!raw || noDraw) {
       this.cursor = raw ? { x: snap(raw.x), y: snap(raw.y) } : null;
       this.activeInfer = null;
@@ -547,9 +549,10 @@ export class SketchController {
     const store = useViewportStore.getState();
     if (!hit) return store.setSelection([]);
     const existing = store.selection.find((s) => s.kind === hit.kind && s.id === hit.id);
+    // Multi-select (toggle). Relations use the first 1–2; Mirror/Pattern use all.
     const next = existing
       ? store.selection.filter((s) => !(s.kind === hit.kind && s.id === hit.id))
-      : [...store.selection, hit].slice(-2);
+      : [...store.selection, hit];
     store.setSelection(next);
   }
 
@@ -671,6 +674,54 @@ export class SketchController {
 
       s2.lines.push({ id: uid("ln"), p1: t1Id, p2: t2Id });
       pruneOrphanPoints(s2);
+    });
+  }
+
+  // Offset: click an entity → parallel copy at `offsetDistance` on the clicked side.
+  private handleOffset(raw: Point2) {
+    const hit = this.pick(raw);
+    if (!hit) return;
+    const d = useViewportStore.getState().offsetDistance;
+    const cons = this.construction;
+    useViewportStore.getState().applyChange((s) => {
+      if (hit.kind === "line") {
+        const l = s.lines.find((x) => x.id === hit.id)!;
+        const a = s.points.find((p) => p.id === l.p1)!;
+        const b = s.points.find((p) => p.id === l.p2)!;
+        const dir = unit(b.x - a.x, b.y - a.y);
+        if (!dir) return;
+        let nx = -dir.y;
+        let ny = dir.x;
+        const sgn = nx * (raw.x - a.x) + ny * (raw.y - a.y) >= 0 ? 1 : -1; // side toward click
+        nx *= sgn * d;
+        ny *= sgn * d;
+        const na = this.getOrCreatePoint(s, { x: a.x + nx, y: a.y + ny });
+        const nb = this.getOrCreatePoint(s, { x: b.x + nx, y: b.y + ny });
+        s.lines.push({ id: uid("ln"), p1: na, p2: nb, construction: cons || undefined });
+      } else if (hit.kind === "circle") {
+        const c = s.circles.find((x) => x.id === hit.id)!;
+        const ctr = s.points.find((p) => p.id === c.center)!;
+        const outward = Math.hypot(raw.x - ctr.x, raw.y - ctr.y) >= c.r;
+        const nr = outward ? c.r + d : Math.max(0.1, c.r - d);
+        s.circles.push({ id: uid("cir"), center: c.center, r: nr, construction: cons || undefined });
+      } else if (hit.kind === "arc") {
+        const arc = s.arcs.find((x) => x.id === hit.id)!;
+        const ctr = s.points.find((p) => p.id === arc.center)!;
+        const st = s.points.find((p) => p.id === arc.start)!;
+        const en = s.points.find((p) => p.id === arc.end)!;
+        const r = Math.hypot(st.x - ctr.x, st.y - ctr.y);
+        const outward = Math.hypot(raw.x - ctr.x, raw.y - ctr.y) >= r;
+        const nr = outward ? r + d : Math.max(0.1, r - d);
+        const scale = (p: SketchPoint) => {
+          const ux = p.x - ctr.x;
+          const uy = p.y - ctr.y;
+          const l = Math.hypot(ux, uy) || 1;
+          return { x: ctr.x + (ux / l) * nr, y: ctr.y + (uy / l) * nr };
+        };
+        const ns = this.getOrCreatePoint(s, scale(st));
+        const ne = this.getOrCreatePoint(s, scale(en));
+        s.arcs.push({ id: uid("arc"), center: arc.center, start: ns, end: ne, ccw: arc.ccw, construction: cons || undefined });
+      }
     });
   }
 

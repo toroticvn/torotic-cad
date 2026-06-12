@@ -16,6 +16,7 @@ import { findRegions } from "../kernel/profile";
 import { chat as chatRequest, generateDesign as requestDesign, type ChatTurn } from "../ai/api";
 import { buildClaudePrompt } from "../ai/prompt";
 import { designToFeatures } from "../ai/design";
+import { cloneEntities, reflectAcross, rotateAbout } from "../sketch/transform";
 
 export type SketchTool =
   | "select"
@@ -35,6 +36,7 @@ export type SketchTool =
   | "trim"
   | "fillet"
   | "sketchChamfer"
+  | "offset"
   | "dimension";
 
 /** A reference to a pickable entity in the sketch. */
@@ -68,6 +70,13 @@ interface AppState {
   construction: boolean;
   polygonSides: number;
   filletRadius: number;
+  /** Offset tool distance. */
+  offsetDistance: number;
+  /** Linear/Circular pattern parameters. */
+  patternCount: number;
+  patternSpacing: number;
+  patternAngle: number; // linear: direction in degrees
+  patternTotalAngle: number; // circular: total sweep in degrees
 
   // --- Kernel / feature dialogs ---
   kernelStatus: "idle" | "loading" | "ready" | "error";
@@ -157,6 +166,14 @@ interface AppState {
   setConstruction: (on: boolean) => void;
   setPolygonSides: (n: number) => void;
   setFilletRadius: (r: number) => void;
+  setOffsetDistance: (d: number) => void;
+  setPatternParam: (patch: Partial<{ count: number; spacing: number; angle: number; total: number }>) => void;
+  /** Mirror selected entities across a selected line (last selected line = axis). */
+  mirrorSelection: () => void;
+  /** Duplicate selected entities in a linear array (uses pattern params). */
+  linearPattern: () => void;
+  /** Duplicate selected entities around a center (selected point, else origin). */
+  circularPattern: () => void;
 
   applyChange: (fn: (s: ParametricSketch) => void) => void;
   addConstraint: (c: GeomConstraintInput) => void;
@@ -191,6 +208,11 @@ export const useViewportStore = create<AppState>((set, get) => ({
   construction: false,
   polygonSides: 6,
   filletRadius: 10,
+  offsetDistance: 5,
+  patternCount: 4,
+  patternSpacing: 25,
+  patternAngle: 0,
+  patternTotalAngle: 360,
 
   kernelStatus: "idle",
   extrudeSession: null,
@@ -573,6 +595,69 @@ export const useViewportStore = create<AppState>((set, get) => ({
   setConstruction: (construction) => set({ construction }),
   setPolygonSides: (polygonSides) => set({ polygonSides: Math.max(3, Math.round(polygonSides)) }),
   setFilletRadius: (filletRadius) => set({ filletRadius: Math.max(0.1, filletRadius) }),
+  setOffsetDistance: (offsetDistance) => set({ offsetDistance: Math.max(0.1, offsetDistance) }),
+  setPatternParam: (patch) =>
+    set((s) => ({
+      patternCount: patch.count !== undefined ? Math.max(2, Math.round(patch.count)) : s.patternCount,
+      patternSpacing: patch.spacing !== undefined ? patch.spacing : s.patternSpacing,
+      patternAngle: patch.angle !== undefined ? patch.angle : s.patternAngle,
+      patternTotalAngle: patch.total !== undefined ? patch.total : s.patternTotalAngle,
+    })),
+
+  mirrorSelection: () => {
+    const sel = get().selection;
+    const axisRef = [...sel].reverse().find((r) => r.kind === "line");
+    if (!axisRef) {
+      set({ featureError: "Mirror: chọn 1 đường làm trục (nên dùng Đường tâm) và các đối tượng cần soi gương." });
+      return;
+    }
+    const entities = sel.filter((r) => !(r.kind === "line" && r.id === axisRef.id) && r.kind !== "point");
+    if (entities.length === 0) {
+      set({ featureError: "Mirror: chọn thêm đối tượng (ngoài đường trục) để soi gương." });
+      return;
+    }
+    get().applyChange((s) => {
+      const line = s.lines.find((l) => l.id === axisRef.id);
+      if (!line) return;
+      const a = s.points.find((p) => p.id === line.p1)!;
+      const b = s.points.find((p) => p.id === line.p2)!;
+      cloneEntities(s, entities, (p) => reflectAcross(p, a, b), true);
+    });
+    get().setSelection([]);
+  },
+
+  linearPattern: () => {
+    const refs = get().selection.filter((r) => r.kind !== "point");
+    if (refs.length === 0) {
+      set({ featureError: "Pattern: chọn đối tượng cần sao chép trước." });
+      return;
+    }
+    const { patternCount: n, patternSpacing: sp, patternAngle: ang } = get();
+    const dx = Math.cos((ang * Math.PI) / 180) * sp;
+    const dy = Math.sin((ang * Math.PI) / 180) * sp;
+    get().applyChange((s) => {
+      for (let k = 1; k < n; k++) cloneEntities(s, refs, (p) => ({ x: p.x + dx * k, y: p.y + dy * k }), false);
+    });
+    get().setSelection([]);
+  },
+
+  circularPattern: () => {
+    const sel = get().selection;
+    const refs = sel.filter((r) => r.kind !== "point");
+    if (refs.length === 0) {
+      set({ featureError: "Pattern tròn: chọn đối tượng cần sao chép (và 1 điểm làm tâm, nếu không sẽ lấy gốc toạ độ)." });
+      return;
+    }
+    const { patternCount: n, patternTotalAngle: total } = get();
+    get().applyChange((s) => {
+      const centerRef = sel.find((r) => r.kind === "point");
+      const cp = centerRef ? s.points.find((p) => p.id === centerRef.id) : null;
+      const center = cp ? { x: cp.x, y: cp.y } : { x: 0, y: 0 };
+      const step = ((total * Math.PI) / 180) / n;
+      for (let k = 1; k < n; k++) cloneEntities(s, refs, (p) => rotateAbout(p, center, step * k), false);
+    });
+    get().setSelection([]);
+  },
 
   applyChange: (fn) => {
     const { sketch } = get();

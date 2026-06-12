@@ -18,6 +18,7 @@ const TOOL_INFO: Record<SketchTool, { name: string; hint: string }> = {
   trim: { name: "Trim (cắt)", hint: "Click vào đối tượng (đường/cung/tròn) để xoá nó." },
   fillet: { name: "Sketch Fillet (bo góc)", hint: "Click vào điểm góc chung của 2 đường để bo cung tiếp tuyến." },
   sketchChamfer: { name: "Sketch Chamfer (vát góc)", hint: "Click vào điểm góc chung của 2 đường để vát thẳng theo khoảng đặt bên dưới." },
+  offset: { name: "Offset Entities", hint: "Click một đường/cung/tròn để tạo bản sao song song; click ở phía nào thì offset về phía đó." },
   dimension: { name: "Smart Dimension", hint: "Click một cạnh để gán chiều dài, đường tròn để gán bán kính, hoặc 2 điểm để gán khoảng cách." },
 };
 
@@ -30,6 +31,8 @@ export function PropertyManager() {
   const setPolygonSides = useViewportStore((s) => s.setPolygonSides);
   const filletRadius = useViewportStore((s) => s.filletRadius);
   const setFilletRadius = useViewportStore((s) => s.setFilletRadius);
+  const offsetDistance = useViewportStore((s) => s.offsetDistance);
+  const setOffsetDistance = useViewportStore((s) => s.setOffsetDistance);
 
   const info = TOOL_INFO[tool];
 
@@ -70,10 +73,73 @@ export function PropertyManager() {
             />
           </label>
         )}
+        {tool === "offset" && (
+          <label className="pm-option">
+            Khoảng offset
+            <input
+              type="number"
+              min={0.1}
+              value={offsetDistance}
+              onChange={(e) => setOffsetDistance(parseFloat(e.target.value) || 1)}
+            />
+          </label>
+        )}
       </div>
 
       <Relations />
+      <ModifyTools />
     </aside>
+  );
+}
+
+/** Mirror & pattern: operate on the current selection (pick with the Select tool first). */
+function ModifyTools() {
+  const selection = useViewportStore((s) => s.selection);
+  const count = useViewportStore((s) => s.patternCount);
+  const spacing = useViewportStore((s) => s.patternSpacing);
+  const angle = useViewportStore((s) => s.patternAngle);
+  const total = useViewportStore((s) => s.patternTotalAngle);
+  const setParam = useViewportStore((s) => s.setPatternParam);
+  const mirror = useViewportStore((s) => s.mirrorSelection);
+  const linear = useViewportStore((s) => s.linearPattern);
+  const circular = useViewportStore((s) => s.circularPattern);
+
+  const nEntities = selection.filter((s) => s.kind !== "point").length;
+
+  return (
+    <div className="pm-section">
+      <div className="pm-heading">Biến đổi (Mirror & Pattern)</div>
+      <div className="pm-instruction">Dùng công cụ Chọn để chọn đối tượng trước, rồi bấm nút bên dưới.</div>
+
+      <div className="pm-relations">
+        <button className="pm-rel-btn" disabled={nEntities < 1} onClick={mirror} title="Soi gương qua đường đã chọn (đường chọn cuối là trục)">
+          Mirror
+        </button>
+        <button className="pm-rel-btn" disabled={nEntities < 1} onClick={linear} title="Sao chép thành dãy thẳng">
+          Pattern thẳng
+        </button>
+        <button className="pm-rel-btn" disabled={nEntities < 1} onClick={circular} title="Sao chép quanh tâm (chọn 1 điểm làm tâm, nếu không lấy gốc toạ độ)">
+          Pattern tròn
+        </button>
+      </div>
+
+      <label className="pm-option">
+        Số lượng
+        <input type="number" min={2} value={count} onChange={(e) => setParam({ count: parseInt(e.target.value) || 2 })} />
+      </label>
+      <label className="pm-option">
+        Khoảng cách (thẳng)
+        <input type="number" value={spacing} onChange={(e) => setParam({ spacing: parseFloat(e.target.value) || 0 })} />
+      </label>
+      <label className="pm-option">
+        Góc hướng (thẳng, °)
+        <input type="number" value={angle} onChange={(e) => setParam({ angle: parseFloat(e.target.value) || 0 })} />
+      </label>
+      <label className="pm-option">
+        Tổng góc (tròn, °)
+        <input type="number" value={total} onChange={(e) => setParam({ total: parseFloat(e.target.value) || 360 })} />
+      </label>
+    </div>
   );
 }
 
