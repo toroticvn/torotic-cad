@@ -32,6 +32,8 @@ export type SketchTool =
   | "arcCenter"
   | "arc3"
   | "arcTangent"
+  | "ellipse"
+  | "spline"
   | "slot"
   | "trim"
   | "fillet"

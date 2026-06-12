@@ -14,6 +14,8 @@ const TOOL_INFO: Record<SketchTool, { name: string; hint: string }> = {
   arcCenter: { name: "Cung theo tâm", hint: "Click tâm → click điểm đầu (định bán kính) → click điểm cuối." },
   arc3: { name: "Cung 3 điểm", hint: "Click điểm đầu → điểm cuối → di chuột để định độ phồng rồi click." },
   arcTangent: { name: "Cung tiếp tuyến", hint: "Click một đầu mút của đường có sẵn → click điểm cuối; cung sẽ tiếp tuyến với đường đó." },
+  ellipse: { name: "Ellipse", hint: "Click tâm → click đầu trục lớn (định bán trục lớn + góc) → click định bán trục nhỏ." },
+  spline: { name: "Spline", hint: "Click lần lượt các điểm đi qua. Chuột phải hoặc Enter để kết thúc đường cong." },
   slot: { name: "Slot (rãnh)", hint: "Click tâm đầu 1 → tâm đầu 2 → di chuột định bề rộng rồi click." },
   trim: { name: "Trim (cắt)", hint: "Click vào đối tượng (đường/cung/tròn) để xoá nó." },
   fillet: { name: "Sketch Fillet (bo góc)", hint: "Click vào điểm góc chung của 2 đường để bo cung tiếp tuyến." },

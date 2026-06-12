@@ -44,6 +44,22 @@ export interface EntRef {
   id: string;
 }
 
+export interface SketchEllipse {
+  id: string;
+  center: string; // point id
+  rx: number; // major radius
+  ry: number; // minor radius
+  rot: number; // rotation of the major axis (radians)
+  construction?: boolean;
+}
+
+export interface SketchSpline {
+  id: string;
+  points: string[]; // ordered control point ids (≥2)
+  closed?: boolean;
+  construction?: boolean;
+}
+
 export type GeomConstraint =
   | { id: string; type: "coincident"; p1: string; p2: string }
   | { id: string; type: "horizontal"; line: string }
@@ -96,12 +112,14 @@ export interface ParametricSketch {
   lines: SketchLine[];
   circles: SketchCircle[];
   arcs: SketchArc[];
+  ellipses: SketchEllipse[];
+  splines: SketchSpline[];
   constraints: GeomConstraint[];
   dimensions: Dimension[];
 }
 
 export function emptySketch(planeId: PlaneId, offset = 0): ParametricSketch {
-  return { planeId, offset, points: [], lines: [], circles: [], arcs: [], constraints: [], dimensions: [] };
+  return { planeId, offset, points: [], lines: [], circles: [], arcs: [], ellipses: [], splines: [], constraints: [], dimensions: [] };
 }
 
 /** Resolve a sketch's actual 3D plane (custom face plane if present, else standard±offset). */

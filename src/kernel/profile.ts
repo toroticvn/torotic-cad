@@ -1,8 +1,54 @@
 import { draw, type Drawing } from "replicad";
 import { sampleArc } from "../sketch/arc";
+import { ellipsePoints, splinePoints } from "../sketch/curves";
 import type { Point2 } from "../sketch/SketchPlane";
 import type { ParametricSketch, SketchArc } from "../sketch/model";
 import { findRegions2D, type RegionPath } from "../sketch/regions2d";
+
+/**
+ * Ellipses and splines aren't handled by the planar arrangement directly, so we
+ * tessellate them into short line segments in a cloned sketch before region
+ * finding. Returns the sketch unchanged when there are none (existing flow).
+ */
+export function expandForProfile(sketch: ParametricSketch): ParametricSketch {
+  const ellipses = sketch.ellipses ?? [];
+  const splines = sketch.splines ?? [];
+  if (ellipses.length === 0 && splines.length === 0) return sketch;
+
+  const s = structuredClone(sketch);
+  const pt = (id: string) => s.points.find((q) => q.id === id);
+  let k = 0;
+  const nid = (p: string) => `ex-${p}-${++k}`;
+
+  // Add a polyline; `ring` connects the last point back to the first.
+  const addPolyline = (pts: Point2[], construction: boolean | undefined, ring: boolean) => {
+    if (pts.length < 2) return;
+    const ids = pts.map((p) => {
+      const id = nid("p");
+      s.points.push({ id, x: p.x, y: p.y });
+      return id;
+    });
+    for (let i = 0; i < ids.length - 1; i++) s.lines.push({ id: nid("l"), p1: ids[i], p2: ids[i + 1], construction });
+    if (ring) s.lines.push({ id: nid("l"), p1: ids[ids.length - 1], p2: ids[0], construction });
+  };
+
+  for (const e of ellipses) {
+    const c = pt(e.center);
+    if (!c) continue;
+    addPolyline(ellipsePoints(c.x, c.y, e.rx, e.ry, e.rot).slice(0, -1), e.construction, true);
+  }
+  for (const sp of splines) {
+    const ctrl = sp.points.map((id) => pt(id)).filter((p): p is NonNullable<typeof p> => !!p);
+    if (ctrl.length < 2) continue;
+    const sampled = splinePoints(ctrl, sp.closed);
+    const ring = !!sp.closed;
+    addPolyline(ring ? sampled.slice(0, -1) : sampled, sp.construction, ring);
+  }
+
+  s.ellipses = [];
+  s.splines = [];
+  return s;
+}
 
 /**
  * Converts a parametric sketch into a closed 2D replicad Drawing. Regions are
@@ -38,7 +84,7 @@ function drawPath(path: RegionPath): Drawing {
 
 /** All closed regions of the sketch (stable order), for UI + selective extrude. */
 export function findRegions(sketch: ParametricSketch): RegionInfo[] {
-  return findRegions2D(sketch).map((r) => ({
+  return findRegions2D(expandForProfile(sketch)).map((r) => ({
     polygon: r.polygon,
     build: () => {
       let d = drawPath(r.outline);

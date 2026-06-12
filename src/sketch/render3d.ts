@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import { type Point2 } from "./SketchPlane";
 import { sampleArc } from "./arc";
+import { ellipsePoints, splinePoints } from "./curves";
 import { planeForSketch, type ParametricSketch } from "./model";
 
 const COLOR = 0x6a7a8c;
@@ -43,6 +44,16 @@ export function buildSketchGroup(sketch: ParametricSketch): THREE.Group {
       pts.push({ x: c.x + Math.cos(t) * circle.r, y: c.y + Math.sin(t) * circle.r });
     }
     polyline(pts);
+  }
+  for (const e of sketch.ellipses ?? []) {
+    if (e.construction) continue;
+    const c = pt(e.center);
+    if (c) polyline(ellipsePoints(c.x, c.y, e.rx, e.ry, e.rot));
+  }
+  for (const sp of sketch.splines ?? []) {
+    if (sp.construction) continue;
+    const ctrl = sp.points.map((id) => pt(id)).filter((p): p is NonNullable<typeof p> => !!p);
+    if (ctrl.length >= 2) polyline(splinePoints(ctrl, sp.closed));
   }
   return group;
 }

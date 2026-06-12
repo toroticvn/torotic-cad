@@ -4,6 +4,7 @@ import { useViewportStore, uid, type SelRef, type SketchTool } from "../state/st
 import { SketchPlane, type Point2 } from "./SketchPlane";
 import { planeForSketch, type ParametricSketch, type SketchPoint } from "./model";
 import { sampleArc, circumcenter, isCcwThrough, distToArc } from "./arc";
+import { ellipsePoints, splinePoints } from "./curves";
 
 const SNAP = 5;
 const PICK_TOL = 6;
@@ -209,12 +210,17 @@ export class SketchController {
   private onContextMenu = (e: MouseEvent) => {
     if (this.plane && this.tool !== "select") {
       e.preventDefault();
+      if (this.tool === "spline" && this.chain.length >= 2) return this.commitSpline();
       this.resetPending();
       this.redraw();
     }
   };
 
   private onKeyDown = (e: KeyboardEvent) => {
+    if (e.key === "Enter" && this.plane && this.tool === "spline" && this.chain.length >= 2) {
+      this.commitSpline();
+      return;
+    }
     if (e.key === "Escape" && this.plane) {
       this.resetPending();
       this.redraw();
@@ -252,9 +258,49 @@ export class SketchController {
         return this.drawArc3(p);
       case "arcTangent":
         return this.drawArcTangent(p);
+      case "ellipse":
+        return this.drawEllipse(p);
+      case "spline":
+        return this.pushChainPoint(p); // accumulate control points; right-click/Enter to finish
       case "slot":
         return this.drawSlot(p);
     }
+  }
+
+  // Ellipse: center → major-axis end (rx + rotation) → minor-axis point (ry).
+  private drawEllipse(p: Point2) {
+    if (this.chain.length < 2) return this.pushChainPoint(p);
+    const cons = this.construction;
+    useViewportStore.getState().applyChange((s) => {
+      const center = this.chainPt(s, 0);
+      const major = this.chainPt(s, 1);
+      const rx = Math.hypot(major.x - center.x, major.y - center.y);
+      if (rx <= 0) return;
+      const rot = Math.atan2(major.y - center.y, major.x - center.x);
+      const ry = Math.abs(-Math.sin(rot) * (p.x - center.x) + Math.cos(rot) * (p.y - center.y));
+      if (ry <= 0) return;
+      // Drop the transient major-axis point; keep the center (referenced).
+      s.points = s.points.filter((q) => q.id !== this.chain[1]);
+      if (!s.ellipses) s.ellipses = [];
+      s.ellipses.push({ id: uid("ell"), center: this.chain[0], rx, ry, rot, construction: cons || undefined });
+    });
+    this.chain = [];
+  }
+
+  // Commit the accumulated spline control points (right-click / Enter).
+  private commitSpline() {
+    if (this.chain.length < 2) {
+      this.resetPending();
+      this.redraw();
+      return;
+    }
+    const cons = this.construction;
+    const ids = [...this.chain];
+    useViewportStore.getState().applyChange((s) => {
+      if (!s.splines) s.splines = [];
+      s.splines.push({ id: uid("spl"), points: ids, construction: cons || undefined });
+    });
+    this.chain = [];
   }
 
   /** Standalone sketch point (reference geometry / dimension anchor). */
@@ -752,6 +798,18 @@ export class SketchController {
       const color = isSel("arc", arc.id) ? C_SELECTED : arc.construction ? C_CONSTRUCTION : baseColor;
       this.group.add(this.arc3(pt(arc.center), pt(arc.start), pt(arc.end), arc.ccw, color, arc.construction));
     }
+    for (const e of s.ellipses ?? []) {
+      const c = pt(e.center);
+      const color = e.construction ? C_CONSTRUCTION : baseColor;
+      this.group.add(this.poly3(ellipsePoints(c.x, c.y, e.rx, e.ry, e.rot), color, e.construction));
+    }
+    for (const sp of s.splines ?? []) {
+      const ctrl = sp.points.map((id) => pt(id));
+      if (ctrl.length >= 2) {
+        const color = sp.construction ? C_CONSTRUCTION : baseColor;
+        this.group.add(this.poly3(splinePoints(ctrl, sp.closed), color, sp.construction));
+      }
+    }
     for (const p of s.points) {
       this.group.add(this.point3(p, isSel("point", p.id) ? C_SELECTED : C_POINT));
     }
@@ -854,6 +912,21 @@ export class SketchController {
       for (let i = 0; i < 4; i++) g.add(this.line3(corners[i], corners[(i + 1) % 4], C_PREVIEW));
       return g;
     }
+    if (this.tool === "ellipse") {
+      const center = cp(0)!;
+      if (this.chain.length === 1) return this.line3(center, p, C_PREVIEW);
+      const major = cp(1)!;
+      const rx = Math.hypot(major.x - center.x, major.y - center.y);
+      const rot = Math.atan2(major.y - center.y, major.x - center.x);
+      const ry = Math.abs(-Math.sin(rot) * (p.x - center.x) + Math.cos(rot) * (p.y - center.y));
+      return this.poly3(ellipsePoints(center.x, center.y, rx, Math.max(ry, 0.01), rot), C_PREVIEW);
+    }
+    if (this.tool === "spline") {
+      const ctrl: Point2[] = [];
+      for (let i = 0; i < this.chain.length; i++) ctrl.push(cp(i)!);
+      ctrl.push(p);
+      return this.poly3(splinePoints(ctrl, false), C_PREVIEW);
+    }
     if (this.tool === "slot") {
       const c1 = cp(0)!;
       if (this.chain.length === 1) return this.line3(c1, p, C_PREVIEW);
@@ -899,6 +972,16 @@ export class SketchController {
       pts.push(this.plane!.to3D({ x: center.x + Math.cos(t) * r, y: center.y + Math.sin(t) * r }));
     }
     const geo = new THREE.BufferGeometry().setFromPoints(pts);
+    if (dashed) {
+      const line = new THREE.Line(geo, new THREE.LineDashedMaterial({ color, dashSize: 3, gapSize: 2 }));
+      line.computeLineDistances();
+      return line;
+    }
+    return new THREE.Line(geo, new THREE.LineBasicMaterial({ color }));
+  }
+
+  private poly3(pts: Point2[], color: number, dashed = false): THREE.Object3D {
+    const geo = new THREE.BufferGeometry().setFromPoints(pts.map((q) => this.plane!.to3D(q)));
     if (dashed) {
       const line = new THREE.Line(geo, new THREE.LineDashedMaterial({ color, dashSize: 3, gapSize: 2 }));
       line.computeLineDistances();
@@ -1059,6 +1142,8 @@ function pruneOrphanPoints(s: ParametricSketch) {
     used.add(a.start);
     used.add(a.end);
   }
+  for (const e of s.ellipses ?? []) used.add(e.center);
+  for (const sp of s.splines ?? []) sp.points.forEach((id) => used.add(id));
   for (const d of s.dimensions) if (d.kind === "distance") d.refs.forEach((r) => used.add(r));
   s.points = s.points.filter((p) => used.has(p.id) || p.fixed);
 }

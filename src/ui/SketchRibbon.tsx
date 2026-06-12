@@ -70,6 +70,8 @@ export function SketchRibbon() {
           ]}
         />
         <Btn def={{ tool: "circle", label: "Tròn", icon: "◯" }} active={tool === "circle"} onClick={setTool} />
+        <Btn def={{ tool: "ellipse", label: "Ellipse", icon: "⬭" }} active={tool === "ellipse"} onClick={setTool} />
+        <Btn def={{ tool: "spline", label: "Spline", icon: "∿" }} active={tool === "spline"} onClick={setTool} />
         <Btn def={{ tool: "polygon", label: "Đa giác", icon: "⬡" }} active={tool === "polygon"} onClick={setTool} />
         <Flyout
           current={tool}
