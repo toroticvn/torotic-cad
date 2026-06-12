@@ -169,6 +169,8 @@ interface AppState {
   setPatternParam: (patch: Partial<{ count: number; spacing: number; angle: number; total: number }>) => void;
   /** Offset selected entities by offsetDistance, outward (away from centroid) or inward. */
   offsetSelection: (outward: boolean) => void;
+  /** Fix/unfix selected points (and endpoints/centers of selected entities). */
+  fixSelection: (fixed: boolean) => void;
   /** Mirror selected entities across a selected line (last selected line = axis). */
   mirrorSelection: () => void;
   /** Duplicate selected entities in a linear array (uses pattern params). */
@@ -613,6 +615,29 @@ export const useViewportStore = create<AppState>((set, get) => ({
     }
     const d = get().offsetDistance;
     get().applyChange((s) => offsetEntities(s, refs, d, outward));
+    get().setSelection([]);
+  },
+
+  fixSelection: (fixed) => {
+    const sel = get().selection;
+    if (sel.length === 0) return;
+    get().applyChange((s) => {
+      const ids = new Set<string>();
+      for (const r of sel) {
+        if (r.kind === "point") ids.add(r.id);
+        else if (r.kind === "line") {
+          const l = s.lines.find((x) => x.id === r.id);
+          if (l) [l.p1, l.p2].forEach((i) => ids.add(i));
+        } else if (r.kind === "circle") {
+          const c = s.circles.find((x) => x.id === r.id);
+          if (c) ids.add(c.center);
+        } else if (r.kind === "arc") {
+          const a = s.arcs.find((x) => x.id === r.id);
+          if (a) [a.center, a.start, a.end].forEach((i) => ids.add(i));
+        }
+      }
+      for (const p of s.points) if (ids.has(p.id)) p.fixed = fixed ? true : undefined;
+    });
     get().setSelection([]);
   },
 

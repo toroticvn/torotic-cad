@@ -57,7 +57,7 @@ export function solveSketch(sketch: ParametricSketch, lockedPointId?: string): S
 
   const constraints: Constraint[] = [];
 
-  for (const c of sketch.constraints) constraints.push(buildGeomConstraint(c, px, py, cr, lineXY));
+  for (const c of sketch.constraints) constraints.push(buildGeomConstraint(c, sketch, px, py, cr, lineXY));
 
   // Implicit per-arc relation: start and end are equidistant from the center
   // (keeps it a valid circular arc as points move).
@@ -104,11 +104,32 @@ export function solveSketch(sketch: ParametricSketch, lockedPointId?: string): S
 
 function buildGeomConstraint(
   c: GeomConstraint,
+  sketch: ParametricSketch,
   px: Map<string, VarId>,
   py: Map<string, VarId>,
   cr: Map<string, VarId>,
   lineXY: (id: string) => { x1: VarId; y1: VarId; x2: VarId; y2: VarId }
 ): Constraint {
+  // A circle or arc as a center + radius (radius is a var for circles, or
+  // |start − center| for arcs). Used by tangent/concentric relations.
+  const curveLike = (
+    ref: { kind: "line" | "circle" | "arc"; id: string }
+  ): { cx: VarId; cy: VarId; rOf: (g: (id: VarId) => number) => number; vars: VarId[] } => {
+    if (ref.kind === "circle") {
+      const c2 = sketch.circles.find((x) => x.id === ref.id)!;
+      const cx = px.get(c2.center)!;
+      const cy = py.get(c2.center)!;
+      const rv = cr.get(c2.id)!;
+      return { cx, cy, rOf: (g) => g(rv), vars: [cx, cy, rv] };
+    }
+    const a = sketch.arcs.find((x) => x.id === ref.id)!;
+    const cx = px.get(a.center)!;
+    const cy = py.get(a.center)!;
+    const sx = px.get(a.start)!;
+    const sy = py.get(a.start)!;
+    return { cx, cy, rOf: (g) => Math.hypot(g(sx) - g(cx), g(sy) - g(cy)), vars: [cx, cy, sx, sy] };
+  };
+
   switch (c.type) {
     case "coincident": {
       const ax = px.get(c.p1)!, ay = py.get(c.p1)!, bx = px.get(c.p2)!, by = py.get(c.p2)!;
@@ -157,6 +178,79 @@ function buildGeomConstraint(
     case "equalRadius": {
       const r1 = cr.get(c.c1)!, r2 = cr.get(c.c2)!;
       return { vars: [r1, r2], residuals: (g) => [g(r1) - g(r2)] };
+    }
+    case "collinear": {
+      const a = lineXY(c.line1), b = lineXY(c.line2);
+      return {
+        vars: [a.x1, a.y1, a.x2, a.y2, b.x1, b.y1, b.x2, b.y2],
+        residuals: (g) => {
+          const dax = g(a.x2) - g(a.x1), day = g(a.y2) - g(a.y1);
+          const dbx = g(b.x2) - g(b.x1), dby = g(b.y2) - g(b.y1);
+          const parallel = dax * dby - day * dbx;
+          const onLine = dax * (g(b.y1) - g(a.y1)) - day * (g(b.x1) - g(a.x1));
+          return [parallel, onLine];
+        },
+      };
+    }
+    case "midpoint": {
+      const l = lineXY(c.line);
+      const pxi = px.get(c.point)!, pyi = py.get(c.point)!;
+      return {
+        vars: [pxi, pyi, l.x1, l.y1, l.x2, l.y2],
+        residuals: (g) => [g(pxi) - (g(l.x1) + g(l.x2)) / 2, g(pyi) - (g(l.y1) + g(l.y2)) / 2],
+      };
+    }
+    case "symmetric": {
+      const l = lineXY(c.line);
+      const p1x = px.get(c.p1)!, p1y = py.get(c.p1)!, p2x = px.get(c.p2)!, p2y = py.get(c.p2)!;
+      return {
+        vars: [p1x, p1y, p2x, p2y, l.x1, l.y1, l.x2, l.y2],
+        residuals: (g) => {
+          const ax = g(l.x1), ay = g(l.y1);
+          const ex = g(l.x2) - ax, ey = g(l.y2) - ay;
+          const len2 = ex * ex + ey * ey || 1e-9;
+          const t = ((g(p1x) - ax) * ex + (g(p1y) - ay) * ey) / len2;
+          const projx = ax + t * ex, projy = ay + t * ey;
+          return [2 * projx - g(p1x) - g(p2x), 2 * projy - g(p1y) - g(p2y)];
+        },
+      };
+    }
+    case "concentric": {
+      const a = curveLike(c.e1), b = curveLike(c.e2);
+      return { vars: [a.cx, a.cy, b.cx, b.cy], residuals: (g) => [g(a.cx) - g(b.cx), g(a.cy) - g(b.cy)] };
+    }
+    case "tangent": {
+      const e1Line = c.e1.kind === "line";
+      const e2Line = c.e2.kind === "line";
+      if (e1Line && e2Line) {
+        // tangent between two lines is undefined — no-op constraint.
+        return { vars: [], residuals: () => [] };
+      }
+      if (e1Line || e2Line) {
+        const lref = e1Line ? c.e1 : c.e2;
+        const cref = e1Line ? c.e2 : c.e1;
+        const l = lineXY(lref.id);
+        const cv = curveLike(cref);
+        return {
+          vars: [l.x1, l.y1, l.x2, l.y2, ...cv.vars],
+          residuals: (g) => {
+            const ax = g(l.x1), ay = g(l.y1);
+            const ex = g(l.x2) - ax, ey = g(l.y2) - ay;
+            const len2 = ex * ex + ey * ey || 1e-9;
+            const cross = ex * (g(cv.cy) - ay) - ey * (g(cv.cx) - ax);
+            const r = cv.rOf(g);
+            return [(cross * cross) / len2 - r * r]; // dist(center,line)² = r²
+          },
+        };
+      }
+      const a = curveLike(c.e1), b = curveLike(c.e2);
+      return {
+        vars: [...a.vars, ...b.vars],
+        residuals: (g) => {
+          const d = Math.hypot(g(a.cx) - g(b.cx), g(a.cy) - g(b.cy));
+          return [d - (a.rOf(g) + b.rOf(g))]; // external tangency
+        },
+      };
     }
   }
 }

@@ -38,6 +38,12 @@ export interface SketchArc {
   construction?: boolean;
 }
 
+/** Reference to a curved/linear entity, for relations that span entity kinds. */
+export interface EntRef {
+  kind: "line" | "circle" | "arc";
+  id: string;
+}
+
 export type GeomConstraint =
   | { id: string; type: "coincident"; p1: string; p2: string }
   | { id: string; type: "horizontal"; line: string }
@@ -45,7 +51,12 @@ export type GeomConstraint =
   | { id: string; type: "parallel"; line1: string; line2: string }
   | { id: string; type: "perpendicular"; line1: string; line2: string }
   | { id: string; type: "equalLength"; line1: string; line2: string }
-  | { id: string; type: "equalRadius"; c1: string; c2: string };
+  | { id: string; type: "equalRadius"; c1: string; c2: string }
+  | { id: string; type: "collinear"; line1: string; line2: string }
+  | { id: string; type: "midpoint"; point: string; line: string }
+  | { id: string; type: "symmetric"; p1: string; p2: string; line: string }
+  | { id: string; type: "concentric"; e1: EntRef; e2: EntRef }
+  | { id: string; type: "tangent"; e1: EntRef; e2: EntRef };
 
 /** Omit that distributes over a union (plain Omit collapses union members). */
 export type DistributiveOmit<T, K extends keyof never> = T extends unknown ? Omit<T, K> : never;

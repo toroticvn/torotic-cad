@@ -160,9 +160,15 @@ function Relations() {
   const addConstraint = useViewportStore((s) => s.addConstraint);
   const setSelection = useViewportStore((s) => s.setSelection);
 
+  const fixSelection = useViewportStore((s) => s.fixSelection);
+
   const lines = selection.filter((s) => s.kind === "line");
   const circles = selection.filter((s) => s.kind === "circle");
+  const arcs = selection.filter((s) => s.kind === "arc");
   const points = selection.filter((s) => s.kind === "point");
+  const curves = [...circles, ...arcs]; // entities with a center/radius
+  const ents = selection.filter((s) => s.kind !== "point");
+  const ref = (r: { kind: string; id: string }) => ({ kind: r.kind as "line" | "circle" | "arc", id: r.id });
 
   const apply = (c: Parameters<typeof addConstraint>[0]) => {
     addConstraint(c);
@@ -174,6 +180,7 @@ function Relations() {
     { label: "Dọc", enabled: lines.length === 1, onClick: () => apply({ type: "vertical", line: lines[0].id }) },
     { label: "Song song", enabled: lines.length === 2, onClick: () => apply({ type: "parallel", line1: lines[0].id, line2: lines[1].id }) },
     { label: "Vuông góc", enabled: lines.length === 2, onClick: () => apply({ type: "perpendicular", line1: lines[0].id, line2: lines[1].id }) },
+    { label: "Thẳng hàng", enabled: lines.length === 2, onClick: () => apply({ type: "collinear", line1: lines[0].id, line2: lines[1].id }) },
     {
       label: "Bằng nhau",
       enabled: lines.length === 2 || circles.length === 2,
@@ -183,6 +190,12 @@ function Relations() {
           : apply({ type: "equalRadius", c1: circles[0].id, c2: circles[1].id }),
     },
     { label: "Trùng điểm", enabled: points.length === 2, onClick: () => apply({ type: "coincident", p1: points[0].id, p2: points[1].id }) },
+    { label: "Trung điểm", enabled: points.length === 1 && lines.length === 1, onClick: () => apply({ type: "midpoint", point: points[0].id, line: lines[0].id }) },
+    { label: "Đối xứng", enabled: points.length === 2 && lines.length === 1, onClick: () => apply({ type: "symmetric", p1: points[0].id, p2: points[1].id, line: lines[0].id }) },
+    { label: "Đồng tâm", enabled: ents.length === 2 && curves.length === 2, onClick: () => apply({ type: "concentric", e1: ref(curves[0]), e2: ref(curves[1]) }) },
+    { label: "Tiếp tuyến", enabled: ents.length === 2 && curves.length >= 1 && lines.length <= 1, onClick: () => apply({ type: "tangent", e1: ref(ents[0]), e2: ref(ents[1]) }) },
+    { label: "Cố định", enabled: selection.length >= 1, onClick: () => fixSelection(true) },
+    { label: "Bỏ cố định", enabled: selection.length >= 1, onClick: () => fixSelection(false) },
   ];
 
   return (
