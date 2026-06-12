@@ -45,6 +45,7 @@ export type SketchTool =
   | "spline"
   | "slot"
   | "trim"
+  | "extend"
   | "fillet"
   | "sketchChamfer"
   | "dimension";

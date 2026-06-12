@@ -174,6 +174,7 @@ export class SketchController {
     if (this.tool === "select") return this.handleSelect(raw);
     if (this.tool === "dimension") return this.handleDimension(raw);
     if (this.tool === "trim") return this.handleTrim(raw);
+    if (this.tool === "extend") return this.handleExtend(raw);
     if (this.tool === "fillet") return this.handleFillet(raw);
     if (this.tool === "sketchChamfer") return this.handleChamfer(raw);
 
@@ -188,6 +189,7 @@ export class SketchController {
       this.tool === "select" ||
       this.tool === "dimension" ||
       this.tool === "trim" ||
+      this.tool === "extend" ||
       this.tool === "fillet" ||
       this.tool === "sketchChamfer";
     if (!raw || noDraw) {
@@ -648,6 +650,59 @@ export class SketchController {
       else if (hit.kind === "circle") s.circles = s.circles.filter((c) => c.id !== hit.id);
       else if (hit.kind === "arc") s.arcs = s.arcs.filter((a) => a.id !== hit.id);
       pruneOrphanPoints(s);
+    });
+  }
+
+  // Extend: click near a line end → lengthen that end until it meets another entity.
+  private handleExtend(raw: Point2) {
+    const hit = this.pick(raw);
+    if (!hit || hit.kind !== "line") return;
+    useViewportStore.getState().applyChange((s) => {
+      const l = s.lines.find((x) => x.id === hit.id)!;
+      const a = s.points.find((p) => p.id === l.p1)!;
+      const b = s.points.find((p) => p.id === l.p2)!;
+      // The endpoint nearer the click is the one to extend.
+      const end = Math.hypot(raw.x - a.x, raw.y - a.y) <= Math.hypot(raw.x - b.x, raw.y - b.y) ? a : b;
+      const other = end === a ? b : a;
+      const dir = unit(end.x - other.x, end.y - other.y);
+      if (!dir) return;
+      const o = { x: end.x, y: end.y };
+
+      let bestT = Infinity;
+      let best: Point2 | null = null;
+      const consider = (t: number | null, pt: Point2) => {
+        if (t !== null && t > 1e-3 && t < bestT) {
+          bestT = t;
+          best = pt;
+        }
+      };
+
+      for (const o2 of s.lines) {
+        if (o2.id === l.id) continue;
+        const p1 = s.points.find((p) => p.id === o2.p1)!;
+        const p2 = s.points.find((p) => p.id === o2.p2)!;
+        const t = rayHitsSegment(o, dir, p1, p2);
+        if (t !== null) consider(t, { x: o.x + dir.x * t, y: o.y + dir.y * t });
+      }
+      for (const c of s.circles) {
+        const ctr = s.points.find((p) => p.id === c.center)!;
+        for (const t of rayHitsCircle(o, dir, ctr, c.r)) consider(t, { x: o.x + dir.x * t, y: o.y + dir.y * t });
+      }
+      for (const ar of s.arcs) {
+        const ctr = s.points.find((p) => p.id === ar.center)!;
+        const st = s.points.find((p) => p.id === ar.start)!;
+        const en = s.points.find((p) => p.id === ar.end)!;
+        const r = Math.hypot(st.x - ctr.x, st.y - ctr.y);
+        for (const t of rayHitsCircle(o, dir, ctr, r)) {
+          const pt = { x: o.x + dir.x * t, y: o.y + dir.y * t };
+          if (distToArc(ctr, st, en, ar.ccw, pt) < 0.5) consider(t, pt);
+        }
+      }
+
+      if (best) {
+        end.x = (best as Point2).x;
+        end.y = (best as Point2).y;
+      }
     });
   }
 
@@ -1153,6 +1208,29 @@ function distToSegment(p: Point2, a: Point2, b: Point2): number {
 function unit(x: number, y: number): { x: number; y: number } | null {
   const l = Math.hypot(x, y);
   return l < 1e-9 ? null : { x: x / l, y: y / l };
+}
+
+/** Distance t≥0 where ray (o + t·d) crosses segment a-b, or null. */
+function rayHitsSegment(o: Point2, d: Point2, a: Point2, b: Point2): number | null {
+  const ex = b.x - a.x;
+  const ey = b.y - a.y;
+  const det = -d.x * ey + ex * d.y;
+  if (Math.abs(det) < 1e-12) return null;
+  const t = ((a.x - o.x) * -ey + ex * (a.y - o.y)) / det;
+  const seg = (d.x * (a.y - o.y) - d.y * (a.x - o.x)) / det;
+  return t > 1e-4 && seg >= -1e-6 && seg <= 1 + 1e-6 ? t : null;
+}
+
+/** Distances t>0 where ray (o + t·d, d unit) crosses the circle (center c, radius r). */
+function rayHitsCircle(o: Point2, d: Point2, c: Point2, r: number): number[] {
+  const fx = o.x - c.x;
+  const fy = o.y - c.y;
+  const b = 2 * (fx * d.x + fy * d.y);
+  const cc = fx * fx + fy * fy - r * r;
+  const disc = b * b - 4 * cc;
+  if (disc < 0) return [];
+  const sq = Math.sqrt(disc);
+  return [(-b - sq) / 2, (-b + sq) / 2].filter((t) => t > 1e-4);
 }
 
 const clamp = (n: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, n));

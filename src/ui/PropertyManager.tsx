@@ -19,6 +19,7 @@ const TOOL_INFO: Record<SketchTool, { name: string; hint: string }> = {
   spline: { name: "Spline", hint: "Click lần lượt các điểm đi qua. Chuột phải hoặc Enter để kết thúc đường cong." },
   slot: { name: "Slot (rãnh)", hint: "Click tâm đầu 1 → tâm đầu 2 → di chuột định bề rộng rồi click." },
   trim: { name: "Trim (cắt)", hint: "Click vào đối tượng (đường/cung/tròn) để xoá nó." },
+  extend: { name: "Extend (kéo dài)", hint: "Click gần đầu của một đường để kéo dài đến khi gặp đối tượng khác." },
   fillet: { name: "Sketch Fillet (bo góc)", hint: "Click vào điểm góc chung của 2 đường để bo cung tiếp tuyến." },
   sketchChamfer: { name: "Sketch Chamfer (vát góc)", hint: "Click vào điểm góc chung của 2 đường để vát thẳng theo khoảng đặt bên dưới." },
   dimension: { name: "Smart Dimension", hint: "Click một cạnh để gán chiều dài, đường tròn để gán bán kính, hoặc 2 điểm để gán khoảng cách." },

@@ -96,6 +96,7 @@ export function SketchRibbon() {
 
       <Group title="Sửa">
         <Btn def={{ tool: "trim", label: "Trim", icon: "✂" }} active={tool === "trim"} onClick={setTool} />
+        <Btn def={{ tool: "extend", label: "Extend", icon: "⊢" }} active={tool === "extend"} onClick={setTool} />
         <Btn def={{ tool: "fillet", label: "Fillet", icon: "⌒" }} active={tool === "fillet"} onClick={setTool} />
         <Btn def={{ tool: "sketchChamfer", label: "Chamfer", icon: "◣" }} active={tool === "sketchChamfer"} onClick={setTool} />
       </Group>
