@@ -13,7 +13,7 @@ import { initKernel, rebuildSolids, exportSolid, ExtrudeError } from "../kernel/
 import { isSketch, producesSolid, consumedSketchIds, type BoolOp, type EdgePoint, type Feature } from "../features";
 import { buildSketchGroup } from "../sketch/render3d";
 import { findRegions } from "../kernel/profile";
-import { evaluateDrawing as requestEvaluation } from "../ai/api";
+import { chat as chatRequest, type ChatTurn } from "../ai/api";
 import { buildClaudePrompt } from "../ai/prompt";
 
 export type SketchTool =
@@ -75,13 +75,16 @@ interface AppState {
   featureError: string | null;
   busy: boolean;
 
-  // --- AI: review/evaluate the current drawing ---
-  aiOpen: boolean;
-  aiBusy: boolean;
-  aiResult: string | null;
-  aiError: string | null;
+  // --- AI chat assistant (Claude) ---
+  chatOpen: boolean;
+  chatBusy: boolean;
+  chatError: string | null;
+  chatMessages: ChatTurn[];
+  openChat: () => void;
+  closeChat: () => void;
+  sendChat: (text: string) => Promise<void>;
+  /** Preset: open chat and ask Claude to review the current drawing. */
   evaluateDrawing: () => Promise<void>;
-  closeAi: () => void;
   /** Manual path: export image + prompt to use with a claude.ai subscription. */
   askClaudeAi: () => void;
 
@@ -184,24 +187,35 @@ export const useViewportStore = create<AppState>((set, get) => ({
   featureError: null,
   busy: false,
 
-  aiOpen: false,
-  aiBusy: false,
-  aiResult: null,
-  aiError: null,
+  chatOpen: false,
+  chatBusy: false,
+  chatError: null,
+  chatMessages: [],
 
-  evaluateDrawing: async () => {
+  openChat: () => set({ chatOpen: true, chatError: null }),
+  closeChat: () => set({ chatOpen: false }),
+
+  sendChat: async (text) => {
+    const t = text.trim();
+    if (!t || get().chatBusy) return;
     const vp = get().viewport;
     if (!vp) return;
-    set({ aiOpen: true, aiBusy: true, aiResult: null, aiError: null });
+    const messages: ChatTurn[] = [...get().chatMessages, { role: "user", text: t }];
+    set({ chatOpen: true, chatMessages: messages, chatBusy: true, chatError: null });
     try {
       const image = vp.captureImage(1024);
-      const text = await requestEvaluation(image, get().features);
-      set({ aiResult: text, aiBusy: false });
+      const reply = await chatRequest(messages, image, get().features);
+      set({ chatMessages: [...messages, { role: "assistant", text: reply }], chatBusy: false });
     } catch (e) {
-      set({ aiError: (e as Error).message, aiBusy: false });
+      set({ chatError: (e as Error).message, chatBusy: false });
     }
   },
-  closeAi: () => set({ aiOpen: false }),
+
+  evaluateDrawing: async () => {
+    await get().sendChat(
+      "Hãy đánh giá bản vẽ này theo các mục: Tổng quan, Điểm tốt, Vấn đề & rủi ro, Khả năng chế tạo (DFM), Gợi ý cải tiến.",
+    );
+  },
 
   askClaudeAi: () => {
     const vp = get().viewport;

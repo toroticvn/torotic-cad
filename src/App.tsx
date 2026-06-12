@@ -11,7 +11,7 @@ import { SweepDialog } from "./ui/SweepDialog";
 import { FilletPropertyManager } from "./ui/FilletPropertyManager";
 import { ExtrudePropertyManager } from "./ui/ExtrudePropertyManager";
 import { StatusBar } from "./ui/StatusBar";
-import { AiPanel } from "./ui/AiPanel";
+import { ChatPanel } from "./ui/ChatPanel";
 import { Notice } from "./ui/Notice";
 import { ViewportCanvas } from "./viewport/ViewportCanvas";
 import { useViewportStore } from "./state/store";
@@ -47,7 +47,7 @@ export function App() {
         {mode === "sketch" ? <ParametersPanel /> : <FeatureEditor />}
       </div>
       <StatusBar />
-      <AiPanel />
+      <ChatPanel />
       <Notice />
     </div>
   );

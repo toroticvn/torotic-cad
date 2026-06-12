@@ -1,43 +1,33 @@
-# Tính năng AI — "Đọc & đánh giá bản vẽ"
+# Tính năng AI (Claude)
 
-Nút **✨ AI đánh giá** trên thanh công cụ gửi ảnh render của viewport + cây tính năng (feature tree JSON) lên máy chủ, để Claude (vision) nhận xét thiết kế: điểm tốt, vấn đề/rủi ro, khả năng chế tạo (DFM) và gợi ý cải tiến.
+Torotic CAD có trợ lý AI chạy bằng **Claude**. Hiện có:
+
+- **💬 Trợ lý AI** — khung chat hỏi–đáp. AI tự "nhìn" ảnh render + cây tính năng (feature tree JSON) của mô hình bạn đang vẽ, nên có thể đánh giá, giải thích, gợi ý cải tiến, hướng dẫn thao tác.
+- **✨ Đánh giá** — gửi sẵn câu hỏi "đánh giá bản vẽ" vào khung chat (nhanh).
+- **📋 Claude.ai** — đường thủ công, **miễn phí bằng gói Pro/Max**: tải ảnh + copy nội dung + mở claude.ai để bạn dán vào chat. Không cần API key, không tốn thêm. Chạy được cả khi mở local.
+
+> Sắp tới: cho AI **vẽ/dựng khối từ mô tả** (text → feature tree → rebuild).
 
 ## Kiến trúc
 
-- **Frontend** ([src/ui/AiPanel.tsx](../src/ui/AiPanel.tsx), [src/ai/api.ts](../src/ai/api.ts)): chụp viewport thành PNG, POST `/api/evaluate`.
-- **Backend** = Cloudflare **Pages Function** [functions/api/evaluate.ts](../functions/api/evaluate.ts): chạy trên edge cùng project Pages, gọi Anthropic Messages API bằng model `claude-opus-4-8` (adaptive thinking, vision).
-- **API key** chỉ nằm ở biến môi trường server-side `ANTHROPIC_API_KEY` — **không bao giờ** gửi xuống trình duyệt.
+- **Frontend**: [src/ui/ChatPanel.tsx](../src/ui/ChatPanel.tsx), [src/ai/api.ts](../src/ai/api.ts) — chụp viewport thành PNG, gửi hội thoại + ảnh + feature tree tới `/api/chat`.
+- **Backend** = Cloudflare **Pages Function** [functions/api/chat.ts](../functions/api/chat.ts): raw fetch tới Anthropic Messages API, model `claude-opus-4-8` (adaptive thinking + vision), đa lượt.
+- **API key** chỉ ở env var server-side `ANTHROPIC_API_KEY` — không bao giờ xuống trình duyệt.
 
-## Hai cách dùng AI
+## ⚠️ Claude API ≠ gói Pro/Max
 
-### Cách 1 — Nút "✨ AI đánh giá" (tự động, qua backend)
-Backend tự chọn nhà cung cấp theo key đã cấu hình:
-- Có `ANTHROPIC_API_KEY` → dùng **Claude** (`claude-opus-4-8`, trả phí, chất lượng cao nhất).
-- Không có thì dùng `GEMINI_API_KEY` → **Google Gemini** (`gemini-2.0-flash`, **free tier**).
+Gói **Claude Pro/Max (claude.ai)** KHÔNG dùng được cho API của app — đây là 2 sản phẩm tính tiền riêng. Để nút "💬 Trợ lý AI" / "✨ Đánh giá" chạy, cần **API key + credit** ở console.anthropic.com (nạp tối thiểu ~$5, dùng rất lâu; mỗi lượt chỉ vài cent).
 
-Thêm `ANTHROPIC_API_KEY` sau là tự nâng cấp lên Claude, không phải sửa code.
+## Cấu hình key (một lần)
 
-### Cách 2 — Nút "📋 Hỏi Claude.ai" (thủ công, dùng gói Pro/Max, $0 thêm)
-Bấm nút → app tải ảnh `torotic-banve.png` + copy sẵn câu hỏi (kèm feature JSON) vào clipboard + mở claude.ai. Bạn dán nội dung, đính ảnh, gửi. Không cần API key, không tốn thêm — dùng đúng gói Claude.ai bạn đã có. Chạy được cả khi mở web local. (Chỉ phục vụ chính bạn, vì gói cá nhân.)
-
-## Cấu hình key cho Cách 1 (một lần)
-
-**Miễn phí (Gemini):**
-1. Vào https://aistudio.google.com/apikey → *Create API key* (miễn phí, không cần thẻ).
-2. **dash.cloudflare.com → Workers & Pages → torotic-cad → Settings → Variables and Secrets**.
-3. Add variable: Name `GEMINI_API_KEY`, Value = key, kiểu **Secret/Encrypt**, áp dụng **Production**.
-4. **Save** → **Deployments → Retry deployment**.
-
-**Trả phí, chất lượng cao hơn (Claude):** làm y hệt nhưng Name = `ANTHROPIC_API_KEY`, key lấy ở https://console.anthropic.com → API keys. Khi có cả hai, backend ưu tiên Claude.
+1. https://console.anthropic.com → **Billing** → nạp credit (vd $5).
+2. **API keys** → *Create Key* → copy (`sk-ant-...`).
+3. dash.cloudflare.com → **Workers & Pages → torotic-cad → Settings → Variables and Secrets**.
+4. Add: Name `ANTHROPIC_API_KEY`, Value = key, kiểu **Secret/Encrypt**, **Production**.
+5. **Save** → **Deployments → Retry deployment**.
 
 ## Lưu ý
 
-- Tính năng chỉ chạy trên **bản đã deploy** (Cloudflare Pages). Chạy `npm run dev` thuần Vite ở localhost sẽ KHÔNG có `/api/evaluate`. Muốn thử local: `npx wrangler pages dev dist` (sau khi `npm run build`) và đặt `ANTHROPIC_API_KEY` trong môi trường wrangler.
-- Mỗi lần đánh giá tốn chi phí API (vision + thinking). Opus 4.8 = $5/$25 mỗi 1M token. Muốn rẻ hơn, đổi `MODEL` trong [functions/api/evaluate.ts](../functions/api/evaluate.ts) sang `claude-sonnet-4-6` ($3/$15) hoặc `claude-haiku-4-5` ($1/$5).
-- Ảnh được thu nhỏ còn ≤1024px trước khi gửi để giảm token.
-
-## Bước sau (chưa làm)
-
-- **Thiết kế từ mô tả**: dùng structured output (`output_config.format`) để Claude sinh ra feature-tree JSON theo schema, rồi `rebuild` dựng khối.
-- Streaming kết quả để UX mượt hơn (hiện đang chờ trọn gói).
-- Giới hạn tần suất gọi (rate limit) nếu mở công khai cho nhiều người.
+- AI tích hợp chỉ chạy trên **bản đã deploy** (Cloudflare Pages), không chạy ở localhost thuần Vite. (Nút "📋 Claude.ai" thì chạy mọi nơi.)
+- Mỗi lượt đính kèm ảnh viewport (≤1024px) + feature tree → Claude thấy đúng mô hình hiện tại.
+- Đổi model rẻ hơn: sửa hằng `MODEL` trong [functions/api/chat.ts](../functions/api/chat.ts) sang `claude-sonnet-4-6` hoặc `claude-haiku-4-5`.
