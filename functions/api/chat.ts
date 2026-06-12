@@ -101,8 +101,12 @@ export const onRequestPost = async (context: { request: Request; env: Env }): Pr
     return { role: m.role, content: m.text };
   });
 
-  const base = env.CF_AI_GATEWAY?.replace(/\/+$/, "");
-  const endpoint = base ? `${base}/v1/messages` : "https://api.anthropic.com/v1/messages";
+  let endpoint = "https://api.anthropic.com/v1/messages";
+  if (env.CF_AI_GATEWAY) {
+    // Tolerate either the base (…/anthropic) or the full (…/anthropic/v1/messages) URL.
+    const base = env.CF_AI_GATEWAY.replace(/\/+$/, "").replace(/\/v1\/messages$/, "");
+    endpoint = `${base}/v1/messages`;
+  }
 
   let resp: Response;
   try {
