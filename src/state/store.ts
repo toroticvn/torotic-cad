@@ -16,7 +16,15 @@ import { findRegions } from "../kernel/profile";
 import { chat as chatRequest, generateDesign as requestDesign, type ChatTurn } from "../ai/api";
 import { buildClaudePrompt } from "../ai/prompt";
 import { designToFeatures } from "../ai/design";
-import { cloneEntities, offsetEntities, reflectAcross, rotateAbout } from "../sketch/transform";
+import {
+  cloneEntities,
+  offsetEntities,
+  reflectAcross,
+  rotateAbout,
+  selectionCentroid,
+  transformPoints,
+  scaleSelectionRadii,
+} from "../sketch/transform";
 
 export type SketchTool =
   | "select"
@@ -79,6 +87,11 @@ interface AppState {
   patternSpacing: number;
   patternAngle: number; // linear: direction in degrees
   patternTotalAngle: number; // circular: total sweep in degrees
+  /** Move/Rotate/Scale parameters for selection transforms. */
+  moveDx: number;
+  moveDy: number;
+  rotateAngleDeg: number;
+  scaleFactor: number;
 
   // --- Kernel / feature dialogs ---
   kernelStatus: "idle" | "loading" | "ready" | "error";
@@ -170,6 +183,11 @@ interface AppState {
   setFilletRadius: (r: number) => void;
   setOffsetDistance: (d: number) => void;
   setPatternParam: (patch: Partial<{ count: number; spacing: number; angle: number; total: number }>) => void;
+  setTransformParam: (patch: Partial<{ dx: number; dy: number; rot: number; scale: number }>) => void;
+  /** Move/Copy/Rotate/Scale the selected entities (copy = keep original). */
+  moveSelection: (copy: boolean) => void;
+  rotateSelection: () => void;
+  scaleSelection: () => void;
   /** Offset selected entities by offsetDistance, outward (away from centroid) or inward. */
   offsetSelection: (outward: boolean) => void;
   /** Fix/unfix selected points (and endpoints/centers of selected entities). */
@@ -221,6 +239,10 @@ export const useViewportStore = create<AppState>((set, get) => ({
   patternSpacing: 25,
   patternAngle: 0,
   patternTotalAngle: 360,
+  moveDx: 20,
+  moveDy: 0,
+  rotateAngleDeg: 90,
+  scaleFactor: 2,
 
   kernelStatus: "idle",
   extrudeSession: null,
@@ -642,6 +664,57 @@ export const useViewportStore = create<AppState>((set, get) => ({
         }
       }
       for (const p of s.points) if (ids.has(p.id)) p.fixed = fixed ? true : undefined;
+    });
+    get().setSelection([]);
+  },
+
+  setTransformParam: (patch) =>
+    set((s) => ({
+      moveDx: patch.dx !== undefined ? patch.dx : s.moveDx,
+      moveDy: patch.dy !== undefined ? patch.dy : s.moveDy,
+      rotateAngleDeg: patch.rot !== undefined ? patch.rot : s.rotateAngleDeg,
+      scaleFactor: patch.scale !== undefined ? patch.scale : s.scaleFactor,
+    })),
+
+  moveSelection: (copy) => {
+    const refs = get().selection.filter((r) => r.kind !== "point");
+    if (refs.length === 0) {
+      set({ featureError: "Move: chọn đối tượng trước." });
+      return;
+    }
+    const { moveDx: dx, moveDy: dy } = get();
+    get().applyChange((s) =>
+      copy ? cloneEntities(s, refs, (p) => ({ x: p.x + dx, y: p.y + dy }), false) : transformPoints(s, refs, (p) => ({ x: p.x + dx, y: p.y + dy })),
+    );
+    get().setSelection([]);
+  },
+
+  rotateSelection: () => {
+    const refs = get().selection.filter((r) => r.kind !== "point");
+    if (refs.length === 0) {
+      set({ featureError: "Rotate: chọn đối tượng trước." });
+      return;
+    }
+    const ang = (get().rotateAngleDeg * Math.PI) / 180;
+    get().applyChange((s) => {
+      const c = selectionCentroid(s, refs);
+      transformPoints(s, refs, (p) => rotateAbout(p, c, ang));
+    });
+    get().setSelection([]);
+  },
+
+  scaleSelection: () => {
+    const refs = get().selection.filter((r) => r.kind !== "point");
+    if (refs.length === 0) {
+      set({ featureError: "Scale: chọn đối tượng trước." });
+      return;
+    }
+    const f = get().scaleFactor;
+    if (!(f > 0)) return;
+    get().applyChange((s) => {
+      const c = selectionCentroid(s, refs);
+      transformPoints(s, refs, (p) => ({ x: c.x + (p.x - c.x) * f, y: c.y + (p.y - c.y) * f }));
+      scaleSelectionRadii(s, refs, f);
     });
     get().setSelection([]);
   },

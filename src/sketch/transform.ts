@@ -83,8 +83,49 @@ export function cloneEntities(
   }
 }
 
+/** Unique point ids referenced by the selected entities. */
+export function refPointIds(s: ParametricSketch, refs: SelRef[]): Set<string> {
+  const ids = new Set<string>();
+  for (const r of refs) {
+    if (r.kind === "point") ids.add(r.id);
+    else if (r.kind === "line") {
+      const l = s.lines.find((x) => x.id === r.id);
+      if (l) [l.p1, l.p2].forEach((i) => ids.add(i));
+    } else if (r.kind === "circle") {
+      const c = s.circles.find((x) => x.id === r.id);
+      if (c) ids.add(c.center);
+    } else if (r.kind === "arc") {
+      const a = s.arcs.find((x) => x.id === r.id);
+      if (a) [a.center, a.start, a.end].forEach((i) => ids.add(i));
+    }
+  }
+  return ids;
+}
+
+/** Move the points of the selected entities in place via `map`. */
+export function transformPoints(s: ParametricSketch, refs: SelRef[], map: (p: Point2) => Point2): void {
+  for (const id of refPointIds(s, refs)) {
+    const p = s.points.find((q) => q.id === id);
+    if (p) {
+      const np = map({ x: p.x, y: p.y });
+      p.x = np.x;
+      p.y = np.y;
+    }
+  }
+}
+
+/** Scale the radii of selected circles by `factor` (for in-place scale). */
+export function scaleSelectionRadii(s: ParametricSketch, refs: SelRef[], factor: number): void {
+  for (const r of refs) {
+    if (r.kind === "circle") {
+      const c = s.circles.find((x) => x.id === r.id);
+      if (c) c.r = Math.max(0.01, c.r * factor);
+    }
+  }
+}
+
 /** Centroid of all points referenced by the selected entities. */
-function selectionCentroid(s: ParametricSketch, refs: SelRef[]): Point2 {
+export function selectionCentroid(s: ParametricSketch, refs: SelRef[]): Point2 {
   const ids = new Set<string>();
   for (const r of refs) {
     if (r.kind === "line") {

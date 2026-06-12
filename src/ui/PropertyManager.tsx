@@ -95,6 +95,14 @@ function ModifyTools() {
   const mirror = useViewportStore((s) => s.mirrorSelection);
   const linear = useViewportStore((s) => s.linearPattern);
   const circular = useViewportStore((s) => s.circularPattern);
+  const moveDx = useViewportStore((s) => s.moveDx);
+  const moveDy = useViewportStore((s) => s.moveDy);
+  const rotateAngleDeg = useViewportStore((s) => s.rotateAngleDeg);
+  const scaleFactor = useViewportStore((s) => s.scaleFactor);
+  const setTransform = useViewportStore((s) => s.setTransformParam);
+  const move = useViewportStore((s) => s.moveSelection);
+  const rotate = useViewportStore((s) => s.rotateSelection);
+  const scale = useViewportStore((s) => s.scaleSelection);
 
   const nEntities = selection.filter((s) => s.kind !== "point").length;
 
@@ -153,6 +161,30 @@ function ModifyTools() {
       <label className="pm-option">
         Tổng góc (tròn, °)
         <input type="number" value={total} onChange={(e) => setParam({ total: parseFloat(e.target.value) || 360 })} />
+      </label>
+
+      <div className="pm-heading" style={{ marginTop: 14 }}>Di chuyển / Xoay / Tỉ lệ</div>
+      <div className="pm-relations">
+        <button className="pm-rel-btn" disabled={nEntities < 1} onClick={() => move(false)} title="Dời đối tượng theo dx, dy">Move</button>
+        <button className="pm-rel-btn" disabled={nEntities < 1} onClick={() => move(true)} title="Chép một bản dời theo dx, dy">Copy</button>
+        <button className="pm-rel-btn" disabled={nEntities < 1} onClick={rotate} title="Xoay quanh tâm cụm theo góc">Rotate</button>
+        <button className="pm-rel-btn" disabled={nEntities < 1} onClick={scale} title="Phóng to/thu nhỏ quanh tâm cụm theo hệ số">Scale</button>
+      </div>
+      <label className="pm-option">
+        Dời X
+        <input type="number" value={moveDx} onChange={(e) => setTransform({ dx: parseFloat(e.target.value) || 0 })} />
+      </label>
+      <label className="pm-option">
+        Dời Y
+        <input type="number" value={moveDy} onChange={(e) => setTransform({ dy: parseFloat(e.target.value) || 0 })} />
+      </label>
+      <label className="pm-option">
+        Góc xoay (°)
+        <input type="number" value={rotateAngleDeg} onChange={(e) => setTransform({ rot: parseFloat(e.target.value) || 0 })} />
+      </label>
+      <label className="pm-option">
+        Hệ số tỉ lệ
+        <input type="number" min={0.01} step={0.1} value={scaleFactor} onChange={(e) => setTransform({ scale: parseFloat(e.target.value) || 1 })} />
       </label>
     </div>
   );
