@@ -89,7 +89,6 @@ export function SketchRibbon() {
         <Btn def={{ tool: "trim", label: "Trim", icon: "✂" }} active={tool === "trim"} onClick={setTool} />
         <Btn def={{ tool: "fillet", label: "Fillet", icon: "⌒" }} active={tool === "fillet"} onClick={setTool} />
         <Btn def={{ tool: "sketchChamfer", label: "Chamfer", icon: "◣" }} active={tool === "sketchChamfer"} onClick={setTool} />
-        <Btn def={{ tool: "offset", label: "Offset", icon: "⇉" }} active={tool === "offset"} onClick={setTool} />
       </Group>
 
       <Sep />

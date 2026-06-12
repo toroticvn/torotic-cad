@@ -16,7 +16,7 @@ import { findRegions } from "../kernel/profile";
 import { chat as chatRequest, generateDesign as requestDesign, type ChatTurn } from "../ai/api";
 import { buildClaudePrompt } from "../ai/prompt";
 import { designToFeatures } from "../ai/design";
-import { cloneEntities, reflectAcross, rotateAbout } from "../sketch/transform";
+import { cloneEntities, offsetEntities, reflectAcross, rotateAbout } from "../sketch/transform";
 
 export type SketchTool =
   | "select"
@@ -36,7 +36,6 @@ export type SketchTool =
   | "trim"
   | "fillet"
   | "sketchChamfer"
-  | "offset"
   | "dimension";
 
 /** A reference to a pickable entity in the sketch. */
@@ -168,6 +167,8 @@ interface AppState {
   setFilletRadius: (r: number) => void;
   setOffsetDistance: (d: number) => void;
   setPatternParam: (patch: Partial<{ count: number; spacing: number; angle: number; total: number }>) => void;
+  /** Offset selected entities by offsetDistance, outward (away from centroid) or inward. */
+  offsetSelection: (outward: boolean) => void;
   /** Mirror selected entities across a selected line (last selected line = axis). */
   mirrorSelection: () => void;
   /** Duplicate selected entities in a linear array (uses pattern params). */
@@ -603,6 +604,17 @@ export const useViewportStore = create<AppState>((set, get) => ({
       patternAngle: patch.angle !== undefined ? patch.angle : s.patternAngle,
       patternTotalAngle: patch.total !== undefined ? patch.total : s.patternTotalAngle,
     })),
+
+  offsetSelection: (outward) => {
+    const refs = get().selection.filter((r) => r.kind !== "point");
+    if (refs.length === 0) {
+      set({ featureError: "Offset: chọn các cạnh (đường/cung/tròn) cần offset trước." });
+      return;
+    }
+    const d = get().offsetDistance;
+    get().applyChange((s) => offsetEntities(s, refs, d, outward));
+    get().setSelection([]);
+  },
 
   mirrorSelection: () => {
     const sel = get().selection;
