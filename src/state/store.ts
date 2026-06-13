@@ -208,6 +208,8 @@ interface AppState {
   addRefPlane: () => void;
   /** Pattern a single feature (the given extrude/revolve) linearly or circularly. */
   addFeaturePattern: (kind: "featPatternLinear" | "featPatternCircular", targetId: string) => void;
+  /** Mirror a single feature (the given extrude/revolve) across a standard plane. */
+  addFeatureMirror: (targetId: string) => void;
   exportModel: (format: "step" | "stl") => Promise<void>;
 
   undo: () => void;
@@ -645,6 +647,19 @@ export const useViewportStore = create<AppState>((set, get) => ({
       kind === "featPatternLinear"
         ? { id: uid(kind), type: "featPatternLinear", name: `Pattern thẳng${n}`, targetId, count: 3, dx: 30, dy: 0, dz: 0 }
         : { id: uid(kind), type: "featPatternCircular", name: `Pattern tròn${n}`, targetId, count: 4, angle: 360, axis: "z" };
+    set((s) => ({ features: [...s.features, f], selectedFeatureId: f.id }));
+    void rebuild(get, set);
+  },
+
+  addFeatureMirror: (targetId) => {
+    const target = get().features.find((f) => f.id === targetId);
+    if (!target || (target.type !== "extrude" && target.type !== "revolve")) {
+      set({ featureError: "Mirror feature: chọn một feature Extrude/Revolve làm gốc." });
+      return;
+    }
+    pushHistory(get, set);
+    const n = get().features.filter((f) => f.type === "featMirror").length + 1;
+    const f: Feature = { id: uid("featMirror"), type: "featMirror", name: `MirrorFeat${n}`, targetId, plane: "YZ" };
     set((s) => ({ features: [...s.features, f], selectedFeatureId: f.id }));
     void rebuild(get, set);
   },

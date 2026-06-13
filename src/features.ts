@@ -143,6 +143,15 @@ export interface FeaturePatternCircular {
   axis: "x" | "y" | "z";
 }
 
+/** Mirror a single solid feature (extrude/revolve) across a standard plane. */
+export interface FeatureMirror {
+  id: string;
+  type: "featMirror";
+  name: string;
+  targetId: string;
+  plane: "XY" | "XZ" | "YZ";
+}
+
 /** Hollow out the running solid, removing the picked faces, keeping `thickness`. */
 export interface ShellFeature {
   id: string;
@@ -172,7 +181,8 @@ export type BodyOpFeature =
   | ShellFeature
   | DraftFeature
   | FeaturePatternLinear
-  | FeaturePatternCircular;
+  | FeaturePatternCircular
+  | FeatureMirror;
 export type Feature = SketchFeature | RefPlaneFeature | SolidFeature | LoftFeature | SweepFeature | ModifierFeature | BodyOpFeature;
 
 export const isSketch = (f: Feature): f is SketchFeature => f.type === "sketch";

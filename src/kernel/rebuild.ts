@@ -234,6 +234,20 @@ export function rebuildBodies(features: Feature[]): Shape3D[] {
       }
       continue;
     }
+    if (f.type === "featMirror") {
+      if (bodies.length === 0) continue;
+      const target = features.find((t) => t.id === f.targetId);
+      if (!target || (target.type !== "extrude" && target.type !== "revolve")) continue;
+      const sk = sketches.get(target.sketchId);
+      if (!sk) continue;
+      try {
+        const tool = buildFeatureSolid(sk, target).mirror(f.plane) as Shape3D;
+        bodies[last()] = (target.operation === "cut" ? bodies[last()].cut(tool) : bodies[last()].fuse(tool)) as Shape3D;
+      } catch {
+        /* mirror failed — leave unchanged */
+      }
+      continue;
+    }
     if (f.type === "mirrorBody") {
       if (bodies.length === 0) continue;
       try {

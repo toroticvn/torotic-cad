@@ -11,6 +11,7 @@ export function FeatureEditor() {
   const openExtrude = useViewportStore((s) => s.openExtrude);
   const openRevolve = useViewportStore((s) => s.openRevolve);
   const addFeaturePattern = useViewportStore((s) => s.addFeaturePattern);
+  const addFeatureMirror = useViewportStore((s) => s.addFeatureMirror);
   const busy = useViewportStore((s) => s.busy);
 
   if (mode !== "model") return null;
@@ -55,7 +56,7 @@ export function FeatureEditor() {
             <span>Mid Plane (đối xứng)</span>
           </label>
           <OpSelect value={feature.operation} onChange={(operation) => update(feature.id, { operation })} disabled={busy} />
-          <PatternBtns id={feature.id} add={addFeaturePattern} />
+          <PatternBtns id={feature.id} add={addFeaturePattern} mirror={addFeatureMirror} />
           <DeleteBtn onClick={() => del(feature.id)} />
         </div>
       )}
@@ -80,7 +81,7 @@ export function FeatureEditor() {
             </select>
           </label>
           <OpSelect value={feature.operation} onChange={(operation) => update(feature.id, { operation })} disabled={busy} />
-          <PatternBtns id={feature.id} add={addFeaturePattern} />
+          <PatternBtns id={feature.id} add={addFeaturePattern} mirror={addFeatureMirror} />
           <DeleteBtn onClick={() => del(feature.id)} />
         </div>
       )}
@@ -238,6 +239,22 @@ export function FeatureEditor() {
         </div>
       )}
 
+      {feature?.type === "featMirror" && (
+        <div className="pm-section">
+          <div className="pm-heading">{feature.name}</div>
+          <div className="pm-instruction">Soi gương feature gốc qua mặt phẳng.</div>
+          <label className="pm-option">
+            Mặt phẳng
+            <select value={feature.plane} disabled={busy} onChange={(e) => update(feature.id, { plane: e.target.value })}>
+              <option value="YZ">YZ (trái–phải)</option>
+              <option value="XZ">XZ (trước–sau)</option>
+              <option value="XY">XY (trên–dưới)</option>
+            </select>
+          </label>
+          <DeleteBtn onClick={() => del(feature.id)} />
+        </div>
+      )}
+
       <div className="params-hint">Sửa số → khối tự dựng lại (parametric rebuild theo cây).</div>
     </aside>
   );
@@ -259,14 +276,17 @@ function OpSelect({ value, onChange, disabled }: { value: string; onChange: (op:
 function PatternBtns({
   id,
   add,
+  mirror,
 }: {
   id: string;
   add: (kind: "featPatternLinear" | "featPatternCircular", targetId: string) => void;
+  mirror: (targetId: string) => void;
 }) {
   return (
     <div className="pm-relations">
       <button className="pm-rel-btn" onClick={() => add("featPatternLinear", id)} title="Lặp feature này thành dãy thẳng">▦ Pattern thẳng</button>
       <button className="pm-rel-btn" onClick={() => add("featPatternCircular", id)} title="Lặp feature này quanh trục">🔄 Pattern tròn</button>
+      <button className="pm-rel-btn" onClick={() => mirror(id)} title="Soi gương feature này qua mặt phẳng">🪞 Mirror</button>
     </div>
   );
 }
