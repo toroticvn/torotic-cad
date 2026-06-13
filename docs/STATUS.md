@@ -38,6 +38,14 @@ Kiến trúc thêm 1 tool: (1) `SketchTool` union trong `store.ts`; (2) nút tro
 | **Quan hệ** | Ngang, Dọc, Song song, Vuông góc, Thẳng hàng, Bằng nhau, Trùng điểm, Trung điểm, Đối xứng, Đồng tâm, Tiếp tuyến, Cố định/Bỏ cố định, Đổi nét dựng |
 | **Kích thước** | Smart Dimension (khoảng cách, bán kính, **góc**) |
 
+### Feature 3D (khối)
+Ngoài Extrude / Revolve / Loft / Sweep / Fillet / Chamfer (đã có từ trước):
+- **Shell** (khoét rỗng — chọn mặt để hở, đặt độ dày thành) — nút "▢ Shell".
+- **Mirror khối** (soi gương khối qua mặt XY/XZ/YZ).
+- **Pattern thẳng 3D** (count + bước dx/dy/dz) và **Pattern tròn 3D** (count + tổng góc + trục).
+
+Cơ chế: các feature này nằm trong cây tính năng, sửa số trong panel "Thuộc tính Feature" → tự dựng lại. Trong `rebuild.ts` chúng biến đổi khối hiện hành bằng `clone()` + `mirror/translate/rotate` + `fuse` (Mirror/Pattern) hoặc `shell(thickness, f=>f.inList(faces))` (Shell, khớp mặt bằng `matchFaces` theo điểm chọn).
+
 ### File chính của sketch
 - `src/sketch/model.ts` — kiểu dữ liệu sketch (points/lines/circles/arcs/ellipses/splines/constraints/dimensions).
 - `src/sketch/SketchController.ts` — vẽ, chọn, preview, render 2D.
