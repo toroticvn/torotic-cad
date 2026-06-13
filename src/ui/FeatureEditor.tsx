@@ -10,6 +10,7 @@ export function FeatureEditor() {
   const editSketch = useViewportStore((s) => s.editSketch);
   const openExtrude = useViewportStore((s) => s.openExtrude);
   const openRevolve = useViewportStore((s) => s.openRevolve);
+  const addFeaturePattern = useViewportStore((s) => s.addFeaturePattern);
   const busy = useViewportStore((s) => s.busy);
 
   if (mode !== "model") return null;
@@ -54,6 +55,7 @@ export function FeatureEditor() {
             <span>Mid Plane (đối xứng)</span>
           </label>
           <OpSelect value={feature.operation} onChange={(operation) => update(feature.id, { operation })} disabled={busy} />
+          <PatternBtns id={feature.id} add={addFeaturePattern} />
           <DeleteBtn onClick={() => del(feature.id)} />
         </div>
       )}
@@ -78,6 +80,7 @@ export function FeatureEditor() {
             </select>
           </label>
           <OpSelect value={feature.operation} onChange={(operation) => update(feature.id, { operation })} disabled={busy} />
+          <PatternBtns id={feature.id} add={addFeaturePattern} />
           <DeleteBtn onClick={() => del(feature.id)} />
         </div>
       )}
@@ -194,6 +197,47 @@ export function FeatureEditor() {
         </div>
       )}
 
+      {feature?.type === "featPatternLinear" && (
+        <div className="pm-section">
+          <div className="pm-heading">{feature.name}</div>
+          <div className="pm-instruction">Lặp feature gốc thành dãy thẳng.</div>
+          <label className="pm-option">Số lượng
+            <input type="number" min={2} value={feature.count} disabled={busy} onChange={(e) => update(feature.id, { count: parseInt(e.target.value) || 2 })} />
+          </label>
+          <label className="pm-option">Bước X
+            <input type="number" value={feature.dx} disabled={busy} onChange={(e) => update(feature.id, { dx: parseFloat(e.target.value) || 0 })} />
+          </label>
+          <label className="pm-option">Bước Y
+            <input type="number" value={feature.dy} disabled={busy} onChange={(e) => update(feature.id, { dy: parseFloat(e.target.value) || 0 })} />
+          </label>
+          <label className="pm-option">Bước Z
+            <input type="number" value={feature.dz} disabled={busy} onChange={(e) => update(feature.id, { dz: parseFloat(e.target.value) || 0 })} />
+          </label>
+          <DeleteBtn onClick={() => del(feature.id)} />
+        </div>
+      )}
+
+      {feature?.type === "featPatternCircular" && (
+        <div className="pm-section">
+          <div className="pm-heading">{feature.name}</div>
+          <div className="pm-instruction">Lặp feature gốc quanh trục qua gốc toạ độ.</div>
+          <label className="pm-option">Số lượng
+            <input type="number" min={2} value={feature.count} disabled={busy} onChange={(e) => update(feature.id, { count: parseInt(e.target.value) || 2 })} />
+          </label>
+          <label className="pm-option">Tổng góc (độ)
+            <input type="number" value={feature.angle} disabled={busy} onChange={(e) => update(feature.id, { angle: parseFloat(e.target.value) || 0 })} />
+          </label>
+          <label className="pm-option">Trục
+            <select value={feature.axis} disabled={busy} onChange={(e) => update(feature.id, { axis: e.target.value })}>
+              <option value="z">Z (đứng)</option>
+              <option value="y">Y</option>
+              <option value="x">X</option>
+            </select>
+          </label>
+          <DeleteBtn onClick={() => del(feature.id)} />
+        </div>
+      )}
+
       <div className="params-hint">Sửa số → khối tự dựng lại (parametric rebuild theo cây).</div>
     </aside>
   );
@@ -209,6 +253,21 @@ function OpSelect({ value, onChange, disabled }: { value: string; onChange: (op:
         <option value="cut">Cắt</option>
       </select>
     </label>
+  );
+}
+
+function PatternBtns({
+  id,
+  add,
+}: {
+  id: string;
+  add: (kind: "featPatternLinear" | "featPatternCircular", targetId: string) => void;
+}) {
+  return (
+    <div className="pm-relations">
+      <button className="pm-rel-btn" onClick={() => add("featPatternLinear", id)} title="Lặp feature này thành dãy thẳng">▦ Pattern thẳng</button>
+      <button className="pm-rel-btn" onClick={() => add("featPatternCircular", id)} title="Lặp feature này quanh trục">🔄 Pattern tròn</button>
+    </div>
   );
 }
 

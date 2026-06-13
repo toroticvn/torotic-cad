@@ -120,6 +120,29 @@ export interface CircularPatternFeature {
   axis: "x" | "y" | "z";
 }
 
+/** Repeat a single solid feature (extrude/revolve) in a linear array. */
+export interface FeaturePatternLinear {
+  id: string;
+  type: "featPatternLinear";
+  name: string;
+  targetId: string; // the extrude/revolve feature to repeat
+  count: number;
+  dx: number;
+  dy: number;
+  dz: number;
+}
+
+/** Repeat a single solid feature (extrude/revolve) around an axis through origin. */
+export interface FeaturePatternCircular {
+  id: string;
+  type: "featPatternCircular";
+  name: string;
+  targetId: string;
+  count: number;
+  angle: number; // total sweep, degrees
+  axis: "x" | "y" | "z";
+}
+
 /** Hollow out the running solid, removing the picked faces, keeping `thickness`. */
 export interface ShellFeature {
   id: string;
@@ -142,7 +165,14 @@ export interface DraftFeature {
 
 export type SolidFeature = ExtrudeFeature | RevolveFeature;
 export type ModifierFeature = FilletFeature | ChamferFeature;
-export type BodyOpFeature = MirrorBodyFeature | LinearPatternFeature | CircularPatternFeature | ShellFeature | DraftFeature;
+export type BodyOpFeature =
+  | MirrorBodyFeature
+  | LinearPatternFeature
+  | CircularPatternFeature
+  | ShellFeature
+  | DraftFeature
+  | FeaturePatternLinear
+  | FeaturePatternCircular;
 export type Feature = SketchFeature | RefPlaneFeature | SolidFeature | LoftFeature | SweepFeature | ModifierFeature | BodyOpFeature;
 
 export const isSketch = (f: Feature): f is SketchFeature => f.type === "sketch";

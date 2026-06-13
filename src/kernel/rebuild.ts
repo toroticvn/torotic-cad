@@ -208,6 +208,32 @@ export function rebuildBodies(features: Feature[]): Shape3D[] {
       }
       continue;
     }
+    if (f.type === "featPatternLinear" || f.type === "featPatternCircular") {
+      if (bodies.length === 0 || f.count < 2) continue;
+      const target = features.find((t) => t.id === f.targetId);
+      if (!target || (target.type !== "extrude" && target.type !== "revolve")) continue;
+      const sk = sketches.get(target.sketchId);
+      if (!sk) continue;
+      try {
+        const op = target.operation;
+        const apply = (body: Shape3D, tool: Shape3D) => (op === "cut" ? body.cut(tool) : body.fuse(tool)) as Shape3D;
+        let body = bodies[last()];
+        for (let k = 1; k < f.count; k++) {
+          let tool = buildFeatureSolid(sk, target);
+          if (f.type === "featPatternLinear") {
+            tool = tool.translate(f.dx * k, f.dy * k, f.dz * k) as Shape3D;
+          } else {
+            const dir: Triple = f.axis === "x" ? [1, 0, 0] : f.axis === "y" ? [0, 1, 0] : [0, 0, 1];
+            tool = tool.rotate((f.angle / f.count) * k, [0, 0, 0], dir) as Shape3D;
+          }
+          body = apply(body, tool);
+        }
+        bodies[last()] = body;
+      } catch {
+        /* pattern failed — leave unchanged */
+      }
+      continue;
+    }
     if (f.type === "mirrorBody") {
       if (bodies.length === 0) continue;
       try {

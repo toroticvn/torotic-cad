@@ -206,6 +206,8 @@ interface AppState {
   addBodyOp: (kind: "mirrorBody" | "patternLinear" | "patternCircular") => void;
   /** Add a reference datum plane (parallel to a standard plane, offset). */
   addRefPlane: () => void;
+  /** Pattern a single feature (the given extrude/revolve) linearly or circularly. */
+  addFeaturePattern: (kind: "featPatternLinear" | "featPatternCircular", targetId: string) => void;
   exportModel: (format: "step" | "stl") => Promise<void>;
 
   undo: () => void;
@@ -629,6 +631,22 @@ export const useViewportStore = create<AppState>((set, get) => ({
     const f: Feature = { id: uid("refPlane"), type: "refPlane", name: `Plane${n}`, base: "top", offset: 50 };
     set((s) => ({ features: [...s.features, f], selectedFeatureId: f.id }));
     updateOverlays(get);
+  },
+
+  addFeaturePattern: (kind, targetId) => {
+    const target = get().features.find((f) => f.id === targetId);
+    if (!target || (target.type !== "extrude" && target.type !== "revolve")) {
+      set({ featureError: "Pattern feature: chọn một feature Extrude/Revolve làm gốc." });
+      return;
+    }
+    pushHistory(get, set);
+    const n = get().features.filter((f) => f.type === kind).length + 1;
+    const f: Feature =
+      kind === "featPatternLinear"
+        ? { id: uid(kind), type: "featPatternLinear", name: `Pattern thẳng${n}`, targetId, count: 3, dx: 30, dy: 0, dz: 0 }
+        : { id: uid(kind), type: "featPatternCircular", name: `Pattern tròn${n}`, targetId, count: 4, angle: 360, axis: "z" };
+    set((s) => ({ features: [...s.features, f], selectedFeatureId: f.id }));
+    void rebuild(get, set);
   },
 
   undo: () => {
