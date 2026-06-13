@@ -143,6 +143,43 @@ export function rebuildBodies(features: Feature[]): Shape3D[] {
       continue;
     }
 
+    if (f.type === "mirrorBody") {
+      if (bodies.length === 0) continue;
+      try {
+        const b = bodies[last()];
+        bodies[last()] = b.fuse(b.clone().mirror(f.plane)) as Shape3D;
+      } catch {
+        /* mirror failed — leave unchanged */
+      }
+      continue;
+    }
+    if (f.type === "patternLinear") {
+      if (bodies.length === 0 || f.count < 2) continue;
+      try {
+        const b = bodies[last()];
+        let acc = b;
+        for (let k = 1; k < f.count; k++) acc = acc.fuse(b.clone().translate(f.dx * k, f.dy * k, f.dz * k)) as Shape3D;
+        bodies[last()] = acc;
+      } catch {
+        /* leave unchanged */
+      }
+      continue;
+    }
+    if (f.type === "patternCircular") {
+      if (bodies.length === 0 || f.count < 2) continue;
+      try {
+        const b = bodies[last()];
+        const dir: Triple = f.axis === "x" ? [1, 0, 0] : f.axis === "y" ? [0, 1, 0] : [0, 0, 1];
+        const step = f.angle / f.count;
+        let acc = b;
+        for (let k = 1; k < f.count; k++) acc = acc.fuse(b.clone().rotate(step * k, [0, 0, 0], dir)) as Shape3D;
+        bodies[last()] = acc;
+      } catch {
+        /* leave unchanged */
+      }
+      continue;
+    }
+
     // Only solid-producing features past this point (narrows `f.operation`).
     if (f.type !== "extrude" && f.type !== "revolve" && f.type !== "loft" && f.type !== "sweep") continue;
 

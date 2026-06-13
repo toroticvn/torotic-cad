@@ -78,9 +78,39 @@ export interface ChamferFeature {
   edges?: EdgePoint[];
 }
 
+/** Mirror the running solid about a standard plane and fuse the copy. */
+export interface MirrorBodyFeature {
+  id: string;
+  type: "mirrorBody";
+  name: string;
+  plane: "XY" | "XZ" | "YZ";
+}
+
+/** Duplicate the running solid in a linear array (fused). */
+export interface LinearPatternFeature {
+  id: string;
+  type: "patternLinear";
+  name: string;
+  count: number;
+  dx: number;
+  dy: number;
+  dz: number;
+}
+
+/** Duplicate the running solid around an axis through the origin (fused). */
+export interface CircularPatternFeature {
+  id: string;
+  type: "patternCircular";
+  name: string;
+  count: number;
+  angle: number; // total sweep in degrees
+  axis: "x" | "y" | "z";
+}
+
 export type SolidFeature = ExtrudeFeature | RevolveFeature;
 export type ModifierFeature = FilletFeature | ChamferFeature;
-export type Feature = SketchFeature | SolidFeature | LoftFeature | SweepFeature | ModifierFeature;
+export type BodyOpFeature = MirrorBodyFeature | LinearPatternFeature | CircularPatternFeature;
+export type Feature = SketchFeature | SolidFeature | LoftFeature | SweepFeature | ModifierFeature | BodyOpFeature;
 
 export const isSketch = (f: Feature): f is SketchFeature => f.type === "sketch";
 /** Solid features that consume a single sketch (have a `sketchId`). */

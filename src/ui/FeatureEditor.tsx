@@ -109,6 +109,63 @@ export function FeatureEditor() {
         </div>
       )}
 
+      {feature?.type === "mirrorBody" && (
+        <div className="pm-section">
+          <div className="pm-heading">{feature.name}</div>
+          <div className="pm-instruction">Soi gương khối qua mặt phẳng rồi nối lại.</div>
+          <label className="pm-option">
+            Mặt phẳng
+            <select value={feature.plane} disabled={busy} onChange={(e) => update(feature.id, { plane: e.target.value })}>
+              <option value="YZ">YZ (trái–phải)</option>
+              <option value="XZ">XZ (trước–sau)</option>
+              <option value="XY">XY (trên–dưới)</option>
+            </select>
+          </label>
+          <DeleteBtn onClick={() => del(feature.id)} />
+        </div>
+      )}
+
+      {feature?.type === "patternLinear" && (
+        <div className="pm-section">
+          <div className="pm-heading">{feature.name}</div>
+          <div className="pm-instruction">Sao chép khối thành dãy thẳng.</div>
+          <label className="pm-option">Số lượng
+            <input type="number" min={2} value={feature.count} disabled={busy} onChange={(e) => update(feature.id, { count: parseInt(e.target.value) || 2 })} />
+          </label>
+          <label className="pm-option">Bước X
+            <input type="number" value={feature.dx} disabled={busy} onChange={(e) => update(feature.id, { dx: parseFloat(e.target.value) || 0 })} />
+          </label>
+          <label className="pm-option">Bước Y
+            <input type="number" value={feature.dy} disabled={busy} onChange={(e) => update(feature.id, { dy: parseFloat(e.target.value) || 0 })} />
+          </label>
+          <label className="pm-option">Bước Z
+            <input type="number" value={feature.dz} disabled={busy} onChange={(e) => update(feature.id, { dz: parseFloat(e.target.value) || 0 })} />
+          </label>
+          <DeleteBtn onClick={() => del(feature.id)} />
+        </div>
+      )}
+
+      {feature?.type === "patternCircular" && (
+        <div className="pm-section">
+          <div className="pm-heading">{feature.name}</div>
+          <div className="pm-instruction">Sao chép khối quanh trục qua gốc toạ độ.</div>
+          <label className="pm-option">Số lượng
+            <input type="number" min={2} value={feature.count} disabled={busy} onChange={(e) => update(feature.id, { count: parseInt(e.target.value) || 2 })} />
+          </label>
+          <label className="pm-option">Tổng góc (độ)
+            <input type="number" value={feature.angle} disabled={busy} onChange={(e) => update(feature.id, { angle: parseFloat(e.target.value) || 0 })} />
+          </label>
+          <label className="pm-option">Trục
+            <select value={feature.axis} disabled={busy} onChange={(e) => update(feature.id, { axis: e.target.value })}>
+              <option value="z">Z (đứng)</option>
+              <option value="y">Y</option>
+              <option value="x">X</option>
+            </select>
+          </label>
+          <DeleteBtn onClick={() => del(feature.id)} />
+        </div>
+      )}
+
       <div className="params-hint">Sửa số → khối tự dựng lại (parametric rebuild theo cây).</div>
     </aside>
   );

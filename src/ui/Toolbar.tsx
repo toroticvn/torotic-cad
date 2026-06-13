@@ -9,6 +9,7 @@ export function Toolbar() {
   const openLoft = useViewportStore((s) => s.openLoft);
   const openSweep = useViewportStore((s) => s.openSweep);
   const startEdgeSelect = useViewportStore((s) => s.startEdgeSelect);
+  const addBodyOp = useViewportStore((s) => s.addBodyOp);
   const exportModel = useViewportStore((s) => s.exportModel);
   const saveProject = useViewportStore((s) => s.saveProject);
   const loadProject = useViewportStore((s) => s.loadProject);
@@ -78,6 +79,12 @@ export function Toolbar() {
       <div className="tool-group">
         <button onClick={() => startEdgeSelect("fillet")} disabled={!hasSolid} title="Bo cạnh (chọn cạnh, hoặc tất cả)">⌒ Fillet</button>
         <button onClick={() => startEdgeSelect("chamfer")} disabled={!hasSolid} title="Vát cạnh (chọn cạnh, hoặc tất cả)">◣ Chamfer</button>
+      </div>
+
+      <div className="tool-group">
+        <button onClick={() => addBodyOp("mirrorBody")} disabled={!hasSolid} title="Soi gương khối qua mặt phẳng">🪞 Mirror</button>
+        <button onClick={() => addBodyOp("patternLinear")} disabled={!hasSolid} title="Sao chép khối thành dãy thẳng">▦ Pattern thẳng</button>
+        <button onClick={() => addBodyOp("patternCircular")} disabled={!hasSolid} title="Sao chép khối quanh trục">🔄 Pattern tròn</button>
       </div>
 
       <div className="tool-group">
