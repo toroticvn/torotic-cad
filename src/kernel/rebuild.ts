@@ -188,6 +188,18 @@ export function rebuildBodies(features: Feature[]): Shape3D[] {
       if (shelled) bodies[last()] = shelled;
       continue;
     }
+    if (f.type === "draft") {
+      if (bodies.length === 0 || !f.faces || f.faces.length === 0) continue;
+      try {
+        const target = bodies[last()];
+        const matched = matchFaces(target, f.faces);
+        if (matched.length === 0) continue;
+        bodies[last()] = target.draft(f.angle, (ff) => ff.inList(matched), f.neutralPlane) as Shape3D;
+      } catch {
+        /* draft failed — leave unchanged */
+      }
+      continue;
+    }
     if (f.type === "mirrorBody") {
       if (bodies.length === 0) continue;
       try {

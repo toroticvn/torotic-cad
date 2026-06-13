@@ -105,6 +105,8 @@ interface AppState {
   edgeSelect: { kind: "fillet" | "chamfer"; radius: number; points: EdgePoint[] } | null;
   /** Active 3D face-selection session for Shell (null = inactive). */
   shellSession: { thickness: number; points: EdgePoint[] } | null;
+  /** Active 3D face-selection session for Draft (null = inactive). */
+  draftSession: { angle: number; neutralPlane: "XY" | "XZ" | "YZ"; points: EdgePoint[] } | null;
   featureError: string | null;
   busy: boolean;
 
@@ -166,6 +168,14 @@ interface AppState {
   setShellThickness: (t: number) => void;
   applyShell: () => void;
   cancelShell: () => void;
+
+  // 3D face selection for Draft
+  startDraft: () => void;
+  addDraftFace: (p: EdgePoint) => void;
+  setDraftAngle: (a: number) => void;
+  setDraftNeutral: (p: "XY" | "XZ" | "YZ") => void;
+  applyDraft: () => void;
+  cancelDraft: () => void;
 
   // Feature editing
   updateFeature: (
@@ -282,6 +292,7 @@ export const useViewportStore = create<AppState>((set, get) => ({
   sweepOpen: false,
   edgeSelect: null,
   shellSession: null,
+  draftSession: null,
   featureError: null,
   busy: false,
 
@@ -516,6 +527,42 @@ export const useViewportStore = create<AppState>((set, get) => ({
     const n = get().features.filter((f) => f.type === "shell").length + 1;
     const f: Feature = { id: uid("shell"), type: "shell", name: `Shell${n}`, thickness: s.thickness, faces: [...s.points] };
     set((st) => ({ features: [...st.features, f], selectedFeatureId: f.id, shellSession: null }));
+    get().viewport?.setSelectedEdges([]);
+    void rebuild(get, set);
+  },
+
+  startDraft: () => {
+    if (!get().features.some(producesSolid)) {
+      set({ featureError: "Cần có khối trước khi Draft." });
+      return;
+    }
+    set({ draftSession: { angle: 5, neutralPlane: "XY", points: [] }, selectedFeatureId: null });
+    get().viewport?.setSelectedEdges([]);
+  },
+  addDraftFace: (p) => {
+    const s = get().draftSession;
+    if (!s) return;
+    const points = [...s.points, p];
+    set({ draftSession: { ...s, points } });
+    get().viewport?.setSelectedEdges(points);
+  },
+  setDraftAngle: (a) => set((s) => (s.draftSession ? { draftSession: { ...s.draftSession, angle: a } } : {})),
+  setDraftNeutral: (p) => set((s) => (s.draftSession ? { draftSession: { ...s.draftSession, neutralPlane: p } } : {})),
+  cancelDraft: () => {
+    set({ draftSession: null });
+    get().viewport?.setSelectedEdges([]);
+  },
+  applyDraft: () => {
+    const s = get().draftSession;
+    if (!s) return;
+    if (s.points.length === 0) {
+      set({ featureError: "Draft: chọn ít nhất 1 mặt để vát." });
+      return;
+    }
+    pushHistory(get, set);
+    const n = get().features.filter((f) => f.type === "draft").length + 1;
+    const f: Feature = { id: uid("draft"), type: "draft", name: `Draft${n}`, angle: s.angle, neutralPlane: s.neutralPlane, faces: [...s.points] };
+    set((st) => ({ features: [...st.features, f], selectedFeatureId: f.id, draftSession: null }));
     get().viewport?.setSelectedEdges([]);
     void rebuild(get, set);
   },

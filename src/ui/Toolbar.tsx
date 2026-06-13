@@ -10,6 +10,7 @@ export function Toolbar() {
   const openSweep = useViewportStore((s) => s.openSweep);
   const startEdgeSelect = useViewportStore((s) => s.startEdgeSelect);
   const startShell = useViewportStore((s) => s.startShell);
+  const startDraft = useViewportStore((s) => s.startDraft);
   const addBodyOp = useViewportStore((s) => s.addBodyOp);
   const exportModel = useViewportStore((s) => s.exportModel);
   const saveProject = useViewportStore((s) => s.saveProject);
@@ -81,6 +82,7 @@ export function Toolbar() {
         <button onClick={() => startEdgeSelect("fillet")} disabled={!hasSolid} title="Bo cạnh (chọn cạnh, hoặc tất cả)">⌒ Fillet</button>
         <button onClick={() => startEdgeSelect("chamfer")} disabled={!hasSolid} title="Vát cạnh (chọn cạnh, hoặc tất cả)">◣ Chamfer</button>
         <button onClick={startShell} disabled={!hasSolid} title="Khoét rỗng khối (chọn mặt để hở)">▢ Shell</button>
+        <button onClick={startDraft} disabled={!hasSolid} title="Vát nghiêng mặt (draft cho khuôn đúc)">◹ Draft</button>
       </div>
 
       <div className="tool-group">

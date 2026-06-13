@@ -33,6 +33,9 @@ export function ViewportCanvas() {
       } else if (st.shellSession) {
         const f = viewport.pickFace(e.clientX, e.clientY);
         if (f) st.addShellFace(f.o);
+      } else if (st.draftSession) {
+        const f = viewport.pickFace(e.clientX, e.clientY);
+        if (f) st.addDraftFace(f.o);
       } else if (st.extrudeSession) {
         const idx = viewport.pickRegion(e.clientX, e.clientY);
         if (idx !== null) st.toggleExtrudeRegion(idx);

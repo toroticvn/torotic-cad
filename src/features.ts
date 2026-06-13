@@ -119,9 +119,19 @@ export interface ShellFeature {
   faces?: EdgePoint[];
 }
 
+/** Apply a draft (taper) angle to picked faces, relative to a neutral plane. */
+export interface DraftFeature {
+  id: string;
+  type: "draft";
+  name: string;
+  angle: number; // degrees
+  neutralPlane: "XY" | "XZ" | "YZ";
+  faces?: EdgePoint[];
+}
+
 export type SolidFeature = ExtrudeFeature | RevolveFeature;
 export type ModifierFeature = FilletFeature | ChamferFeature;
-export type BodyOpFeature = MirrorBodyFeature | LinearPatternFeature | CircularPatternFeature | ShellFeature;
+export type BodyOpFeature = MirrorBodyFeature | LinearPatternFeature | CircularPatternFeature | ShellFeature | DraftFeature;
 export type Feature = SketchFeature | SolidFeature | LoftFeature | SweepFeature | ModifierFeature | BodyOpFeature;
 
 export const isSketch = (f: Feature): f is SketchFeature => f.type === "sketch";
