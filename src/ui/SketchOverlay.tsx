@@ -11,7 +11,8 @@ export function SketchOverlay() {
   const hasSolid = useViewportStore((s) => s.features.some((f) => f.type !== "sketch"));
   const start = useViewportStore((s) => s.startSketchOnPlane);
   const cancel = useViewportStore((s) => s.cancelSketch);
-  const refPlanes = useViewportStore((s) => s.features.filter((f) => f.type === "refPlane"));
+  const features = useViewportStore((s) => s.features);
+  const refPlanes = features.filter((f) => f.type === "refPlane");
   const [offset, setOffset] = useState(0);
 
   if (mode !== "sketch" || sketch) return null;
