@@ -17,6 +17,15 @@ export interface SketchFeature {
   sketch: ParametricSketch;
 }
 
+/** Reference geometry: a datum plane parallel to a standard plane, offset along its normal. */
+export interface RefPlaneFeature {
+  id: string;
+  type: "refPlane";
+  name: string;
+  base: "front" | "top" | "right";
+  offset: number;
+}
+
 export interface ExtrudeFeature {
   id: string;
   type: "extrude";
@@ -134,7 +143,7 @@ export interface DraftFeature {
 export type SolidFeature = ExtrudeFeature | RevolveFeature;
 export type ModifierFeature = FilletFeature | ChamferFeature;
 export type BodyOpFeature = MirrorBodyFeature | LinearPatternFeature | CircularPatternFeature | ShellFeature | DraftFeature;
-export type Feature = SketchFeature | SolidFeature | LoftFeature | SweepFeature | ModifierFeature | BodyOpFeature;
+export type Feature = SketchFeature | RefPlaneFeature | SolidFeature | LoftFeature | SweepFeature | ModifierFeature | BodyOpFeature;
 
 export const isSketch = (f: Feature): f is SketchFeature => f.type === "sketch";
 /** Solid features that consume a single sketch (have a `sketchId`). */

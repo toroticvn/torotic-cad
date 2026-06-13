@@ -12,6 +12,7 @@ export function Toolbar() {
   const startShell = useViewportStore((s) => s.startShell);
   const startDraft = useViewportStore((s) => s.startDraft);
   const addBodyOp = useViewportStore((s) => s.addBodyOp);
+  const addRefPlane = useViewportStore((s) => s.addRefPlane);
   const exportModel = useViewportStore((s) => s.exportModel);
   const saveProject = useViewportStore((s) => s.saveProject);
   const loadProject = useViewportStore((s) => s.loadProject);
@@ -89,6 +90,10 @@ export function Toolbar() {
         <button onClick={() => addBodyOp("mirrorBody")} disabled={!hasSolid} title="Soi gương khối qua mặt phẳng">🪞 Mirror</button>
         <button onClick={() => addBodyOp("patternLinear")} disabled={!hasSolid} title="Sao chép khối thành dãy thẳng">▦ Pattern thẳng</button>
         <button onClick={() => addBodyOp("patternCircular")} disabled={!hasSolid} title="Sao chép khối quanh trục">🔄 Pattern tròn</button>
+      </div>
+
+      <div className="tool-group">
+        <button onClick={addRefPlane} title="Tạo mặt phẳng tham chiếu (datum) để vẽ sketch trên đó">▭ Mặt phẳng</button>
       </div>
 
       <div className="tool-group">

@@ -11,7 +11,8 @@ import {
 import { solveSketch } from "../sketch/solveSketch";
 import { initKernel, rebuildSolids, exportSolid, solidEdges, ExtrudeError } from "../kernel/kernel";
 import { isSketch, producesSolid, consumedSketchIds, type BoolOp, type EdgePoint, type Feature } from "../features";
-import { buildSketchGroup } from "../sketch/render3d";
+import { buildSketchGroup, buildDatumPlane } from "../sketch/render3d";
+import { resolvePlane } from "../sketch/SketchPlane";
 import { findRegions } from "../kernel/profile";
 import { chat as chatRequest, generateDesign as requestDesign, type ChatTurn } from "../ai/api";
 import { buildClaudePrompt } from "../ai/prompt";
@@ -194,6 +195,8 @@ interface AppState {
       plane: string;
       flip: boolean;
       midplane: boolean;
+      base: string;
+      offset: number;
     }>,
   ) => void;
   deleteFeature: (id: string) => void;
@@ -201,6 +204,8 @@ interface AppState {
   addModifier: (kind: "fillet" | "chamfer") => void;
   /** Add a 3D body operation (mirror / linear pattern / circular pattern). */
   addBodyOp: (kind: "mirrorBody" | "patternLinear" | "patternCircular") => void;
+  /** Add a reference datum plane (parallel to a standard plane, offset). */
+  addRefPlane: () => void;
   exportModel: (format: "step" | "stl") => Promise<void>;
 
   undo: () => void;
@@ -616,6 +621,14 @@ export const useViewportStore = create<AppState>((set, get) => ({
     else f = { id: uid(kind), type: "patternCircular", name: `CircularPattern${n}`, count: 4, angle: 360, axis: "z" };
     set((s) => ({ features: [...s.features, f], selectedFeatureId: f.id }));
     void rebuild(get, set);
+  },
+
+  addRefPlane: () => {
+    pushHistory(get, set);
+    const n = get().features.filter((f) => f.type === "refPlane").length + 1;
+    const f: Feature = { id: uid("refPlane"), type: "refPlane", name: `Plane${n}`, base: "top", offset: 50 };
+    set((s) => ({ features: [...s.features, f], selectedFeatureId: f.id }));
+    updateOverlays(get);
   },
 
   undo: () => {
@@ -1087,7 +1100,13 @@ function showExtrudeRegions(get: Get): void {
 function updateOverlays(get: Get): void {
   const { viewport, features, mode } = get();
   if (!viewport) return;
-  viewport.setSketchOverlays(mode === "sketch" ? [] : features.filter(isSketch).map((f) => buildSketchGroup(f.sketch)));
+  if (mode === "sketch") {
+    viewport.setSketchOverlays([]);
+    return;
+  }
+  const objs = features.filter(isSketch).map((f) => buildSketchGroup(f.sketch));
+  for (const f of features) if (f.type === "refPlane") objs.push(buildDatumPlane(resolvePlane(f.base, f.offset)));
+  viewport.setSketchOverlays(objs);
 }
 
 /** Snapshot current features into the undo stack (clearing redo). */

@@ -11,6 +11,7 @@ export function SketchOverlay() {
   const hasSolid = useViewportStore((s) => s.features.some((f) => f.type !== "sketch"));
   const start = useViewportStore((s) => s.startSketchOnPlane);
   const cancel = useViewportStore((s) => s.cancelSketch);
+  const refPlanes = useViewportStore((s) => s.features.filter((f) => f.type === "refPlane"));
   const [offset, setOffset] = useState(0);
 
   if (mode !== "sketch" || sketch) return null;
@@ -30,6 +31,15 @@ export function SketchOverlay() {
           <span>Offset mặt phẳng (mm)</span>
           <input type="number" value={offset} onChange={(e) => setOffset(parseFloat(e.target.value) || 0)} />
         </label>
+        {refPlanes.length > 0 && (
+          <div className="picker-planes" style={{ flexWrap: "wrap" }}>
+            {refPlanes.map((f) => (
+              <button key={f.id} onClick={() => f.type === "refPlane" && start(f.base, f.offset)}>
+                {f.name}
+              </button>
+            ))}
+          </div>
+        )}
         {hasSolid && (
           <div className="pm-instruction" style={{ marginBottom: 10 }}>
             …hoặc <b>click vào một mặt phẳng của khối</b> trong khung nhìn để vẽ trực tiếp lên mặt đó.

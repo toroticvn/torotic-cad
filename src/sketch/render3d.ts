@@ -1,8 +1,31 @@
 import * as THREE from "three";
-import { type Point2 } from "./SketchPlane";
+import { type Point2, type SketchPlane } from "./SketchPlane";
 import { sampleArc } from "./arc";
 import { ellipsePoints, splinePoints } from "./curves";
 import { planeForSketch, type ParametricSketch } from "./model";
+
+/** A faint translucent square + border representing a datum/reference plane. */
+export function buildDatumPlane(plane: SketchPlane, size = 70): THREE.Group {
+  const g = new THREE.Group();
+  const c = [
+    [-size, -size],
+    [size, -size],
+    [size, size],
+    [-size, size],
+  ].map(([x, y]) => plane.to3D({ x, y }));
+  const fill = new THREE.Mesh(
+    new THREE.BufferGeometry().setFromPoints([c[0], c[1], c[2], c[0], c[2], c[3]]),
+    new THREE.MeshBasicMaterial({ color: 0x2f6fea, transparent: true, opacity: 0.07, side: THREE.DoubleSide, depthWrite: false }),
+  );
+  g.add(fill);
+  g.add(
+    new THREE.Line(
+      new THREE.BufferGeometry().setFromPoints([...c, c[0]]),
+      new THREE.LineBasicMaterial({ color: 0x2f6fea, transparent: true, opacity: 0.5 }),
+    ),
+  );
+  return g;
+}
 
 const COLOR = 0x6a7a8c;
 const CIRCLE_SEGMENTS = 64;

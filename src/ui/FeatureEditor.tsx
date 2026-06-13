@@ -117,6 +117,26 @@ export function FeatureEditor() {
         </div>
       )}
 
+      {feature?.type === "refPlane" && (
+        <div className="pm-section">
+          <div className="pm-heading">{feature.name}</div>
+          <div className="pm-instruction">Mặt phẳng tham chiếu. Vào Sketch rồi chọn mặt phẳng này để vẽ trên đó.</div>
+          <label className="pm-option">
+            Song song với
+            <select value={feature.base} disabled={busy} onChange={(e) => update(feature.id, { base: e.target.value })}>
+              <option value="front">Front</option>
+              <option value="top">Top</option>
+              <option value="right">Right</option>
+            </select>
+          </label>
+          <label className="pm-option">
+            Offset (mm)
+            <input type="number" value={feature.offset} disabled={busy} onChange={(e) => update(feature.id, { offset: parseFloat(e.target.value) || 0 })} />
+          </label>
+          <DeleteBtn onClick={() => del(feature.id)} />
+        </div>
+      )}
+
       {feature?.type === "mirrorBody" && (
         <div className="pm-section">
           <div className="pm-heading">{feature.name}</div>
