@@ -198,6 +198,7 @@ function Relations() {
 
   const fixSelection = useViewportStore((s) => s.fixSelection);
   const toggleConstruction = useViewportStore((s) => s.toggleConstructionSelection);
+  const addAngleDim = useViewportStore((s) => s.addAngleDim);
 
   const lines = selection.filter((s) => s.kind === "line");
   const circles = selection.filter((s) => s.kind === "circle");
@@ -234,6 +235,7 @@ function Relations() {
     { label: "Cố định", enabled: selection.length >= 1, onClick: () => fixSelection(true) },
     { label: "Bỏ cố định", enabled: selection.length >= 1, onClick: () => fixSelection(false) },
     { label: "Đổi nét dựng", enabled: ents.length >= 1, onClick: () => toggleConstruction() },
+    { label: "Kích thước góc", enabled: lines.length === 2, onClick: () => { addAngleDim(lines[0].id, lines[1].id); setSelection([]); } },
   ];
 
   return (

@@ -206,6 +206,7 @@ interface AppState {
   addConstraint: (c: GeomConstraintInput) => void;
   addDistanceDim: (p1: string, p2: string) => void;
   addRadiusDim: (circleId: string) => void;
+  addAngleDim: (line1: string, line2: string) => void;
   updateDimension: (id: string, patch: { value?: number; formula?: string }) => void;
   deleteDimension: (id: string) => void;
 }
@@ -831,6 +832,20 @@ export const useViewportStore = create<AppState>((set, get) => ({
         refs: [circleId],
         value: Math.round(c.r * 100) / 100,
       });
+    }),
+
+  addAngleDim: (line1, line2) =>
+    get().applyChange((s) => {
+      const l1 = s.lines.find((q) => q.id === line1);
+      const l2 = s.lines.find((q) => q.id === line2);
+      if (!l1 || !l2) return;
+      const pt = (id: string) => s.points.find((q) => q.id === id)!;
+      const a1 = pt(l1.p1), a2 = pt(l1.p2), b1 = pt(l2.p1), b2 = pt(l2.p2);
+      const cross = (a2.x - a1.x) * (b2.y - b1.y) - (a2.y - a1.y) * (b2.x - b1.x);
+      const dot = (a2.x - a1.x) * (b2.x - b1.x) + (a2.y - a1.y) * (b2.y - b1.y);
+      const deg = Math.round(((Math.atan2(cross, dot) * 180) / Math.PI) * 100) / 100;
+      const name = `d${s.dimensions.length + 1}`;
+      s.dimensions.push({ id: uid("dim"), name, kind: "angle", refs: [line1, line2], value: deg });
     }),
 
   updateDimension: (id, patch) =>

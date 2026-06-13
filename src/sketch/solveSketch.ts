@@ -86,6 +86,20 @@ export function solveSketch(sketch: ParametricSketch, lockedPointId?: string): S
     } else if (d.kind === "radius" && d.refs.length === 1) {
       const r = cr.get(d.refs[0]);
       if (r !== undefined) constraints.push({ vars: [r], residuals: (g) => [g(r) - target] });
+    } else if (d.kind === "angle" && d.refs.length === 2) {
+      const a = lineXY(d.refs[0]);
+      const b = lineXY(d.refs[1]);
+      const targetRad = (target * Math.PI) / 180;
+      constraints.push({
+        vars: [a.x1, a.y1, a.x2, a.y2, b.x1, b.y1, b.x2, b.y2],
+        residuals: (g) => {
+          const d1x = g(a.x2) - g(a.x1), d1y = g(a.y2) - g(a.y1);
+          const d2x = g(b.x2) - g(b.x1), d2y = g(b.y2) - g(b.y1);
+          const cross = d1x * d2y - d1y * d2x;
+          const dot = d1x * d2x + d1y * d2y;
+          return [Math.atan2(cross, dot) - targetRad];
+        },
+      });
     }
   }
 

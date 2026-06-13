@@ -80,7 +80,7 @@ export type DistributiveOmit<T, K extends keyof never> = T extends unknown ? Omi
 /** A geometric constraint without its id, for callers that create one. */
 export type GeomConstraintInput = DistributiveOmit<GeomConstraint, "id">;
 
-export type DimensionKind = "distance" | "radius";
+export type DimensionKind = "distance" | "radius" | "angle";
 
 export interface Dimension {
   id: string;

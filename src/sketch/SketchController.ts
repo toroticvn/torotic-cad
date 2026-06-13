@@ -1111,6 +1111,15 @@ export class SketchController {
         objs.push(this.line3(ctr, { x: ctr.x + c.r, y: ctr.y }, C_DIM));
         objs.push(this.label3({ x: ctr.x + c.r / 2, y: ctr.y }, `R${round(d.value)}`));
       }
+    } else if (d.kind === "angle" && d.refs.length === 2) {
+      const l1 = this.sketch!.lines.find((q) => q.id === d.refs[0]);
+      const l2 = this.sketch!.lines.find((q) => q.id === d.refs[1]);
+      if (l1 && l2) {
+        const ps = [pt(l1.p1), pt(l1.p2), pt(l2.p1), pt(l2.p2)];
+        const cx = ps.reduce((s, p) => s + p.x, 0) / 4;
+        const cy = ps.reduce((s, p) => s + p.y, 0) / 4;
+        objs.push(this.label3({ x: cx, y: cy }, `${round(d.value)}°`));
+      }
     }
     return objs;
   }
