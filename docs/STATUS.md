@@ -40,9 +40,12 @@ Kiến trúc thêm 1 tool: (1) `SketchTool` union trong `store.ts`; (2) nút tro
 
 ### Feature 3D (khối)
 Ngoài Extrude / Revolve / Loft / Sweep / Fillet / Chamfer (đã có từ trước):
+- **Extrude end conditions:** Blind, **Mid Plane** (đối xứng), **Đảo chiều** (cắt vào mặt).
 - **Shell** (khoét rỗng — chọn mặt để hở, đặt độ dày thành) — nút "▢ Shell".
-- **Mirror khối** (soi gương khối qua mặt XY/XZ/YZ).
-- **Pattern thẳng 3D** (count + bước dx/dy/dz) và **Pattern tròn 3D** (count + tổng góc + trục).
+- **Draft** (vát mặt nghiêng cho khuôn — chọn mặt + góc + mặt phẳng gốc) — nút "◹ Draft".
+- **Mirror khối** + **Pattern thẳng/tròn cả khối** (nút trên thanh công cụ).
+- **Pattern theo Feature** (▦/🔄) và **Mirror theo Feature** (🪞) — lặp/soi gương MỘT feature (vd 1 lỗ → vòng lỗ). Bấm trên panel khi chọn 1 extrude/revolve.
+- **Reference geometry:** Datum plane (▭ Mặt phẳng) — mặt phẳng song song + offset, sketch được lên đó.
 
 Cơ chế: các feature này nằm trong cây tính năng, sửa số trong panel "Thuộc tính Feature" → tự dựng lại. Trong `rebuild.ts` chúng biến đổi khối hiện hành bằng `clone()` + `mirror/translate/rotate` + `fuse` (Mirror/Pattern) hoặc `shell(thickness, f=>f.inList(faces))` (Shell, khớp mặt bằng `matchFaces` theo điểm chọn).
 
