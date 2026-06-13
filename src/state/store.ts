@@ -97,7 +97,7 @@ interface AppState {
   // --- Kernel / feature dialogs ---
   kernelStatus: "idle" | "loading" | "ready" | "error";
   /** Active extrude session: pick contours + distance/operation (SolidWorks-like). */
-  extrudeSession: { sketchId: string; distance: number; operation: BoolOp; flip: boolean; selected: number[]; regionCount: number } | null;
+  extrudeSession: { sketchId: string; distance: number; operation: BoolOp; flip: boolean; midplane: boolean; selected: number[]; regionCount: number } | null;
   revolveTargetId: string | null; // sketch feature id for the revolve dialog
   loftOpen: boolean;
   sweepOpen: boolean;
@@ -149,6 +149,7 @@ interface AppState {
   setExtrudeDistance: (d: number) => void;
   setExtrudeOperation: (op: BoolOp) => void;
   setExtrudeFlip: (flip: boolean) => void;
+  setExtrudeMidplane: (midplane: boolean) => void;
   applyExtrude: () => Promise<void>;
   cancelExtrude: () => void;
   runRevolve: (angle: number, axis: "u" | "v", operation: BoolOp) => Promise<void>;
@@ -192,6 +193,7 @@ interface AppState {
       dz: number;
       plane: string;
       flip: boolean;
+      midplane: boolean;
     }>,
   ) => void;
   deleteFeature: (id: string) => void;
@@ -379,7 +381,7 @@ export const useViewportStore = create<AppState>((set, get) => ({
     const count = findRegions(feat.sketch).length;
     const operation: BoolOp = get().features.some(producesSolid) ? "add" : "new";
     set({
-      extrudeSession: { sketchId, distance: 25, operation, flip: false, selected: Array.from({ length: count }, (_, i) => i), regionCount: count },
+      extrudeSession: { sketchId, distance: 25, operation, flip: false, midplane: false, selected: Array.from({ length: count }, (_, i) => i), regionCount: count },
       revolveTargetId: null,
       loftOpen: false,
       sweepOpen: false,
@@ -402,6 +404,7 @@ export const useViewportStore = create<AppState>((set, get) => ({
   setExtrudeDistance: (distance) => set((st) => (st.extrudeSession ? { extrudeSession: { ...st.extrudeSession, distance } } : {})),
   setExtrudeOperation: (operation) => set((st) => (st.extrudeSession ? { extrudeSession: { ...st.extrudeSession, operation } } : {})),
   setExtrudeFlip: (flip) => set((st) => (st.extrudeSession ? { extrudeSession: { ...st.extrudeSession, flip } } : {})),
+  setExtrudeMidplane: (midplane) => set((st) => (st.extrudeSession ? { extrudeSession: { ...st.extrudeSession, midplane } } : {})),
   cancelExtrude: () => {
     set({ extrudeSession: null });
     get().viewport?.clearExtrudeRegions();
@@ -424,6 +427,7 @@ export const useViewportStore = create<AppState>((set, get) => ({
       distance: s.distance,
       operation: s.operation,
       flip: s.flip,
+      midplane: s.midplane,
       regions,
     });
   },

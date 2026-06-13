@@ -46,8 +46,12 @@ export function FeatureEditor() {
             />
           </label>
           <label className="pm-option">
-            <input type="checkbox" checked={!!feature.flip} disabled={busy} onChange={(e) => update(feature.id, { flip: e.target.checked })} />
+            <input type="checkbox" checked={!!feature.flip} disabled={busy || !!feature.midplane} onChange={(e) => update(feature.id, { flip: e.target.checked })} />
             <span>Đảo chiều</span>
+          </label>
+          <label className="pm-option">
+            <input type="checkbox" checked={!!feature.midplane} disabled={busy} onChange={(e) => update(feature.id, { midplane: e.target.checked })} />
+            <span>Mid Plane (đối xứng)</span>
           </label>
           <OpSelect value={feature.operation} onChange={(operation) => update(feature.id, { operation })} disabled={busy} />
           <DeleteBtn onClick={() => del(feature.id)} />

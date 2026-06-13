@@ -7,6 +7,7 @@ export function ExtrudePropertyManager() {
   const setDistance = useViewportStore((st) => st.setExtrudeDistance);
   const setOperation = useViewportStore((st) => st.setExtrudeOperation);
   const setFlip = useViewportStore((st) => st.setExtrudeFlip);
+  const setMidplane = useViewportStore((st) => st.setExtrudeMidplane);
   const apply = useViewportStore((st) => st.applyExtrude);
   const cancel = useViewportStore((st) => st.cancelExtrude);
   const hasSolid = useViewportStore((st) => st.features.some((f) => f.type === "extrude" || f.type === "revolve" || f.type === "loft" || f.type === "sweep"));
@@ -47,8 +48,12 @@ export function ExtrudePropertyManager() {
           <input type="number" value={s.distance} onChange={(e) => setDistance(parseFloat(e.target.value) || 0)} />
         </label>
         <label className="pm-option">
-          <input type="checkbox" checked={s.flip} onChange={(e) => setFlip(e.target.checked)} />
+          <input type="checkbox" checked={s.flip} onChange={(e) => setFlip(e.target.checked)} disabled={s.midplane} />
           <span>Đảo chiều (đùn/cắt xuống mặt kia)</span>
+        </label>
+        <label className="pm-option">
+          <input type="checkbox" checked={s.midplane} onChange={(e) => setMidplane(e.target.checked)} />
+          <span>Mid Plane (đối xứng 2 phía)</span>
         </label>
         {hasSolid && (
           <label className="pm-option">

@@ -50,7 +50,15 @@ function buildFeatureSolid(sketchFeat: SketchFeature, feat: SolidFeature): Shape
   const sp = planeForSketch(sketchFeat.sketch);
   const regions = feat.type === "extrude" ? feat.regions : undefined;
   const sketch3 = sketchOnItsPlane(sketchFeat.sketch, regions);
-  if (feat.type === "extrude") return sketch3.extrude(feat.flip ? -feat.distance : feat.distance) as Shape3D;
+  if (feat.type === "extrude") {
+    const d = feat.flip ? -feat.distance : feat.distance;
+    let solid = sketch3.extrude(d) as Shape3D;
+    if (feat.midplane) {
+      const n = sp.normal;
+      solid = solid.translate(-n.x * d / 2, -n.y * d / 2, -n.z * d / 2) as Shape3D;
+    }
+    return solid;
+  }
   const axis = feat.axis === "v" ? sp.v : sp.u;
   return sketch3.revolve([axis.x, axis.y, axis.z], {
     origin: [sp.origin.x, sp.origin.y, sp.origin.z],

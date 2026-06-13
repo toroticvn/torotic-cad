@@ -26,6 +26,8 @@ export interface ExtrudeFeature {
   operation: BoolOp;
   /** Reverse the extrude direction (extrude along −normal, e.g. cut into a face). */
   flip?: boolean;
+  /** Symmetric about the sketch plane (Mid Plane end condition). */
+  midplane?: boolean;
   /** Selected sketch region indices to extrude (undefined/empty = all regions). */
   regions?: number[];
 }
