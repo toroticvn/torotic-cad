@@ -9,6 +9,7 @@ import { RevolveDialog } from "./ui/RevolveDialog";
 import { LoftDialog } from "./ui/LoftDialog";
 import { SweepDialog } from "./ui/SweepDialog";
 import { FilletPropertyManager } from "./ui/FilletPropertyManager";
+import { ShellPropertyManager } from "./ui/ShellPropertyManager";
 import { ExtrudePropertyManager } from "./ui/ExtrudePropertyManager";
 import { StatusBar } from "./ui/StatusBar";
 import { ChatPanel } from "./ui/ChatPanel";
@@ -20,10 +21,13 @@ import { useViewportStore } from "./state/store";
 export function App() {
   const mode = useViewportStore((s) => s.mode);
   const edgeSelect = useViewportStore((s) => s.edgeSelect);
+  const shellSession = useViewportStore((s) => s.shellSession);
   const extrudeSession = useViewportStore((s) => s.extrudeSession);
 
   const leftPanel = edgeSelect ? (
     <FilletPropertyManager />
+  ) : shellSession ? (
+    <ShellPropertyManager />
   ) : extrudeSession ? (
     <ExtrudePropertyManager />
   ) : mode === "sketch" ? (

@@ -30,6 +30,9 @@ export function ViewportCanvas() {
       if (st.edgeSelect) {
         const p = viewport.pickEdgePoint(e.clientX, e.clientY);
         if (p) st.addEdgePoint(p);
+      } else if (st.shellSession) {
+        const f = viewport.pickFace(e.clientX, e.clientY);
+        if (f) st.addShellFace(f.o);
       } else if (st.extrudeSession) {
         const idx = viewport.pickRegion(e.clientX, e.clientY);
         if (idx !== null) st.toggleExtrudeRegion(idx);

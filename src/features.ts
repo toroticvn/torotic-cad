@@ -107,9 +107,19 @@ export interface CircularPatternFeature {
   axis: "x" | "y" | "z";
 }
 
+/** Hollow out the running solid, removing the picked faces, keeping `thickness`. */
+export interface ShellFeature {
+  id: string;
+  type: "shell";
+  name: string;
+  thickness: number;
+  /** Faces to remove (open), referenced by a point on each. */
+  faces?: EdgePoint[];
+}
+
 export type SolidFeature = ExtrudeFeature | RevolveFeature;
 export type ModifierFeature = FilletFeature | ChamferFeature;
-export type BodyOpFeature = MirrorBodyFeature | LinearPatternFeature | CircularPatternFeature;
+export type BodyOpFeature = MirrorBodyFeature | LinearPatternFeature | CircularPatternFeature | ShellFeature;
 export type Feature = SketchFeature | SolidFeature | LoftFeature | SweepFeature | ModifierFeature | BodyOpFeature;
 
 export const isSketch = (f: Feature): f is SketchFeature => f.type === "sketch";

@@ -115,6 +115,33 @@ function matchEdges(shape: Shape3D, points: EdgePoint[]) {
   return [...chosen].map((i) => edges[i]);
 }
 
+/** Match reference points to the body's nearest faces (by face center). */
+function matchFaces(shape: Shape3D, points: EdgePoint[]) {
+  const faces = shape.faces;
+  const centers = faces.map((f) => {
+    try {
+      return f.center.toTuple();
+    } catch {
+      return null;
+    }
+  });
+  const chosen = new Set<number>();
+  for (const [px, py, pz] of points) {
+    let bestIdx = -1;
+    let bestD = Infinity;
+    centers.forEach((m, i) => {
+      if (!m) return;
+      const d = (m[0] - px) ** 2 + (m[1] - py) ** 2 + (m[2] - pz) ** 2;
+      if (d < bestD) {
+        bestD = d;
+        bestIdx = i;
+      }
+    });
+    if (bestIdx >= 0) chosen.add(bestIdx);
+  }
+  return [...chosen].map((i) => faces[i]);
+}
+
 /**
  * Evaluate the feature tree into solid bodies. `operation: "new"` starts a new
  * body; "add"/"cut" fuse/subtract into the most-recent body. Modifier features
@@ -143,6 +170,18 @@ export function rebuildBodies(features: Feature[]): Shape3D[] {
       continue;
     }
 
+    if (f.type === "shell") {
+      if (bodies.length === 0 || f.thickness <= 0 || !f.faces || f.faces.length === 0) continue;
+      try {
+        const target = bodies[last()];
+        const matched = matchFaces(target, f.faces);
+        if (matched.length === 0) continue;
+        bodies[last()] = target.shell(f.thickness, (ff) => ff.inList(matched)) as Shape3D;
+      } catch {
+        /* shell failed (thickness too large / bad faces) — leave unchanged */
+      }
+      continue;
+    }
     if (f.type === "mirrorBody") {
       if (bodies.length === 0) continue;
       try {

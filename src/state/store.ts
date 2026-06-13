@@ -103,6 +103,8 @@ interface AppState {
   sweepOpen: boolean;
   /** Active 3D edge-selection session for fillet/chamfer (null = inactive). */
   edgeSelect: { kind: "fillet" | "chamfer"; radius: number; points: EdgePoint[] } | null;
+  /** Active 3D face-selection session for Shell (null = inactive). */
+  shellSession: { thickness: number; points: EdgePoint[] } | null;
   featureError: string | null;
   busy: boolean;
 
@@ -156,6 +158,13 @@ interface AppState {
   setEdgeSelectRadius: (r: number) => void;
   applyEdgeSelect: () => void;
   cancelEdgeSelect: () => void;
+
+  // 3D face selection for Shell
+  startShell: () => void;
+  addShellFace: (p: EdgePoint) => void;
+  setShellThickness: (t: number) => void;
+  applyShell: () => void;
+  cancelShell: () => void;
 
   // Feature editing
   updateFeature: (
@@ -270,6 +279,7 @@ export const useViewportStore = create<AppState>((set, get) => ({
   loftOpen: false,
   sweepOpen: false,
   edgeSelect: null,
+  shellSession: null,
   featureError: null,
   busy: false,
 
@@ -467,6 +477,41 @@ export const useViewportStore = create<AppState>((set, get) => ({
     const edges = sel.points.length ? sel.points : undefined;
     const f: Feature = { id: uid(sel.kind), type: sel.kind, name, radius: sel.radius, edges };
     set((s) => ({ features: [...s.features, f], selectedFeatureId: f.id, edgeSelect: null }));
+    get().viewport?.setSelectedEdges([]);
+    void rebuild(get, set);
+  },
+
+  startShell: () => {
+    if (!get().features.some(producesSolid)) {
+      set({ featureError: "Cần có khối trước khi Shell." });
+      return;
+    }
+    set({ shellSession: { thickness: 3, points: [] }, selectedFeatureId: null });
+    get().viewport?.setSelectedEdges([]);
+  },
+  addShellFace: (p) => {
+    const s = get().shellSession;
+    if (!s) return;
+    const points = [...s.points, p];
+    set({ shellSession: { ...s, points } });
+    get().viewport?.setSelectedEdges(points); // reuse marker to show picked faces
+  },
+  setShellThickness: (t) => set((s) => (s.shellSession ? { shellSession: { ...s.shellSession, thickness: Math.max(0.1, t) } } : {})),
+  cancelShell: () => {
+    set({ shellSession: null });
+    get().viewport?.setSelectedEdges([]);
+  },
+  applyShell: () => {
+    const s = get().shellSession;
+    if (!s) return;
+    if (s.points.length === 0) {
+      set({ featureError: "Shell: chọn ít nhất 1 mặt để khoét hở." });
+      return;
+    }
+    pushHistory(get, set);
+    const n = get().features.filter((f) => f.type === "shell").length + 1;
+    const f: Feature = { id: uid("shell"), type: "shell", name: `Shell${n}`, thickness: s.thickness, faces: [...s.points] };
+    set((st) => ({ features: [...st.features, f], selectedFeatureId: f.id, shellSession: null }));
     get().viewport?.setSelectedEdges([]);
     void rebuild(get, set);
   },
