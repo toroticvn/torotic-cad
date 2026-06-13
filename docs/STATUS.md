@@ -1,6 +1,6 @@
 # Torotic CAD — Tổng quan trạng thái dự án
 
-> File này tóm tắt tình trạng dự án để đọc nhanh khi quay lại. Cập nhật lần cuối: **2026-06-13**.
+> File này tóm tắt tình trạng dự án để đọc nhanh khi quay lại. Cập nhật lần cuối: **2026-06-13** (sau khi clone xong bộ công cụ Sketch Đợt 1–9).
 
 ## 1. Dự án là gì
 **Torotic CAD** — web app CAD 3D tham số kiểu SolidWorks (sketch → ràng buộc → feature → khối B-rep → cây tính năng). Thư mục: `c:\Users\Admin\Desktop\CodeRoadMap`.
@@ -33,10 +33,10 @@ Kiến trúc thêm 1 tool: (1) `SketchTool` union trong `store.ts`; (2) nút tro
 | Nhóm | Đã có |
 |---|---|
 | **Đối tượng** | Đường, Đường tâm, Điểm, Chữ nhật (góc/tâm/3 điểm), Hình bình hành, Tròn (tâm / 3 điểm), Ellipse, Spline, Đa giác, Cung (tâm/3 điểm/tiếp tuyến), Slot |
-| **Sửa** | Trim, Fillet, Chamfer |
-| **Biến đổi** | Offset (chọn cạnh + chiều ra/vào), Mirror, Pattern thẳng, Pattern tròn |
+| **Sửa** | Trim, Extend, Fillet, Chamfer, Convert entities (chiếu cạnh khối đồng phẳng) |
+| **Biến đổi** | Offset (chọn cạnh + chiều ra/vào), Mirror, Pattern thẳng, Pattern tròn, Move, Copy, Rotate, Scale |
 | **Quan hệ** | Ngang, Dọc, Song song, Vuông góc, Thẳng hàng, Bằng nhau, Trùng điểm, Trung điểm, Đối xứng, Đồng tâm, Tiếp tuyến, Cố định/Bỏ cố định, Đổi nét dựng |
-| **Kích thước** | Smart Dimension (khoảng cách, bán kính) |
+| **Kích thước** | Smart Dimension (khoảng cách, bán kính, **góc**) |
 
 ### File chính của sketch
 - `src/sketch/model.ts` — kiểu dữ liệu sketch (points/lines/circles/arcs/ellipses/splines/constraints/dimensions).
@@ -46,14 +46,14 @@ Kiến trúc thêm 1 tool: (1) `SketchTool` union trong `store.ts`; (2) nút tro
 - `src/sketch/curves.ts` — lấy mẫu ellipse + spline (Catmull-Rom).
 - `src/kernel/profile.ts` — `expandForProfile()` chia nhỏ ellipse/spline thành đoạn trước khi tìm vùng để đùn.
 
-## 5. CHƯA làm (khó hơn — buổi sau)
-- **Convert entities** — chiếu cạnh khối 3D lên sketch (cần ghép picking cạnh 3D + chiếu).
-- **Text** — chữ → biên dạng đùn (cần thư viện font, vd opentype.js).
-- **Move/Rotate/Scale tại chỗ, Extend, kích thước góc.**
-- Gán **kích thước/ràng buộc cho ellipse & spline** (hiện chỉ vẽ + đùn, chưa tham số hoá đầy đủ).
+## 5. CHƯA làm (khó hơn — buổi sau, cần test)
+- **Text** — chữ → biên dạng đùn. Cần thư viện font (opentype.js) + bundle 1 file .ttf + chuyển glyph outline → đoạn/đường trong sketch. Là việc nhiều bước, nên làm khi có thể test trực tiếp trên trình duyệt (không làm "mù" được).
+- **Slot biến thể** (centerpoint arc slot, 3-point arc slot).
+- **Power trim kéo rê** (hiện Trim là click-xoá-cả-đối-tượng).
+- Gán **kích thước/ràng buộc cho ellipse & spline** (hiện chỉ vẽ + đùn, chưa tham số hoá đầy đủ); ellipse/spline cũng **chưa pick/select được**.
 
 ## 6. Tình trạng kiểm thử
-Tất cả công cụ Đợt 1–5 **build pass + đã deploy**, nhưng **chưa kiểm bằng mắt trên trình duyệt**. Cần test thực tế: vẽ thử từng tool, kiểm hình ra đúng; đặc biệt Offset (chiều ra/vào với hình hở), Mirror/Pattern, Ellipse/Spline đùn khối.
+Tất cả công cụ Đợt 1–9 **build pass + đã deploy**, nhưng **chưa kiểm bằng mắt trên trình duyệt**. Cần test thực tế từng tool: đặc biệt Offset (chiều ra/vào), Mirror/Pattern, Move/Rotate/Scale (tâm = trọng tâm cụm chọn), Ellipse/Spline đùn khối, Extend (kéo tới giao điểm), Convert (chiếu cạnh đồng phẳng — nên dùng khi sketch trên một mặt khối), quan hệ Tiếp tuyến/Đồng tâm, và kích thước Góc.
 
 ## 7. Gotcha môi trường máy (Windows này)
 - Phần mềm kiểm tra SSL/mạng gây lỗi: Node/npm cần `NODE_OPTIONS=--use-system-ca`; git cần `http.sslBackend schannel`; Chrome lỗi `ERR_QUIC_PROTOCOL_ERROR` (dùng Firefox hoặc tắt QUIC); dashboard Cloudflare thỉnh thoảng 500/404 (tải lại / Firefox).
