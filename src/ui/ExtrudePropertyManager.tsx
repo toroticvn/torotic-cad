@@ -6,6 +6,7 @@ export function ExtrudePropertyManager() {
   const s = useViewportStore((st) => st.extrudeSession);
   const setDistance = useViewportStore((st) => st.setExtrudeDistance);
   const setOperation = useViewportStore((st) => st.setExtrudeOperation);
+  const setFlip = useViewportStore((st) => st.setExtrudeFlip);
   const apply = useViewportStore((st) => st.applyExtrude);
   const cancel = useViewportStore((st) => st.cancelExtrude);
   const hasSolid = useViewportStore((st) => st.features.some((f) => f.type === "extrude" || f.type === "revolve" || f.type === "loft" || f.type === "sweep"));
@@ -44,6 +45,10 @@ export function ExtrudePropertyManager() {
         <label className="pm-option">
           <span>Chiều cao (mm)</span>
           <input type="number" value={s.distance} onChange={(e) => setDistance(parseFloat(e.target.value) || 0)} />
+        </label>
+        <label className="pm-option">
+          <input type="checkbox" checked={s.flip} onChange={(e) => setFlip(e.target.checked)} />
+          <span>Đảo chiều (đùn/cắt xuống mặt kia)</span>
         </label>
         {hasSolid && (
           <label className="pm-option">

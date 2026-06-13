@@ -24,6 +24,8 @@ export interface ExtrudeFeature {
   sketchId: string;
   distance: number;
   operation: BoolOp;
+  /** Reverse the extrude direction (extrude along −normal, e.g. cut into a face). */
+  flip?: boolean;
   /** Selected sketch region indices to extrude (undefined/empty = all regions). */
   regions?: number[];
 }

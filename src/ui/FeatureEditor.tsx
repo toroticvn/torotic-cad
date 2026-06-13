@@ -45,6 +45,10 @@ export function FeatureEditor() {
               onChange={(e) => update(feature.id, { distance: parseFloat(e.target.value) || 0 })}
             />
           </label>
+          <label className="pm-option">
+            <input type="checkbox" checked={!!feature.flip} disabled={busy} onChange={(e) => update(feature.id, { flip: e.target.checked })} />
+            <span>Đảo chiều</span>
+          </label>
           <OpSelect value={feature.operation} onChange={(operation) => update(feature.id, { operation })} disabled={busy} />
           <DeleteBtn onClick={() => del(feature.id)} />
         </div>

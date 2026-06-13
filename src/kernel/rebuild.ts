@@ -50,7 +50,7 @@ function buildFeatureSolid(sketchFeat: SketchFeature, feat: SolidFeature): Shape
   const sp = planeForSketch(sketchFeat.sketch);
   const regions = feat.type === "extrude" ? feat.regions : undefined;
   const sketch3 = sketchOnItsPlane(sketchFeat.sketch, regions);
-  if (feat.type === "extrude") return sketch3.extrude(feat.distance) as Shape3D;
+  if (feat.type === "extrude") return sketch3.extrude(feat.flip ? -feat.distance : feat.distance) as Shape3D;
   const axis = feat.axis === "v" ? sp.v : sp.u;
   return sketch3.revolve([axis.x, axis.y, axis.z], {
     origin: [sp.origin.x, sp.origin.y, sp.origin.z],
@@ -172,14 +172,20 @@ export function rebuildBodies(features: Feature[]): Shape3D[] {
 
     if (f.type === "shell") {
       if (bodies.length === 0 || f.thickness <= 0 || !f.faces || f.faces.length === 0) continue;
-      try {
-        const target = bodies[last()];
-        const matched = matchFaces(target, f.faces);
-        if (matched.length === 0) continue;
-        bodies[last()] = target.shell(f.thickness, (ff) => ff.inList(matched)) as Shape3D;
-      } catch {
-        /* shell failed (thickness too large / bad faces) — leave unchanged */
+      const target = bodies[last()];
+      const matched = matchFaces(target, f.faces);
+      if (matched.length === 0) continue;
+      // OCC offset sign varies; try inward (negative) first, then positive.
+      let shelled: Shape3D | null = null;
+      for (const t of [-f.thickness, f.thickness]) {
+        try {
+          shelled = target.shell(t, (ff) => ff.inList(matched)) as Shape3D;
+          break;
+        } catch {
+          /* try the other direction */
+        }
       }
+      if (shelled) bodies[last()] = shelled;
       continue;
     }
     if (f.type === "mirrorBody") {

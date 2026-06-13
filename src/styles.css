@@ -441,6 +441,17 @@ body,
   justify-content: center;
   pointer-events: none;
 }
+/* Anchored at the top so it doesn't cover the part (face-clicking stays possible). */
+.picker-top {
+  position: absolute;
+  top: 14px;
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: center;
+  pointer-events: none;
+  z-index: 40;
+}
 .modal-backdrop {
   background: rgba(40, 45, 55, 0.35);
 }

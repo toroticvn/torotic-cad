@@ -16,7 +16,7 @@ export function SketchOverlay() {
   if (mode !== "sketch" || sketch) return null;
 
   return (
-    <div className="overlay-center">
+    <div className="picker-top">
       <div className="picker-card">
         <div className="picker-title">Chọn mặt phẳng để vẽ</div>
         <div className="picker-planes">
