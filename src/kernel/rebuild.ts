@@ -196,6 +196,23 @@ export function rebuildSolids(features: Feature[]): MeshData[] {
   return rebuildBodies(features).map(meshOf);
 }
 
+/** Every B-rep edge of every body, as a dense 3D polyline (for Convert Entities). */
+export function solidEdges(features: Feature[]): Triple[][] {
+  const out: Triple[][] = [];
+  for (const shape of rebuildBodies(features)) {
+    for (const e of shape.edges) {
+      try {
+        const pts: Triple[] = [];
+        for (let k = 0; k <= 16; k++) pts.push(e.pointAt(k / 16).toTuple());
+        out.push(pts);
+      } catch {
+        /* skip degenerate edges */
+      }
+    }
+  }
+  return out;
+}
+
 /** Rebuild and export as STEP/STL Blob (bodies fused into one shape). */
 export function exportSolid(features: Feature[], format: "step" | "stl"): Blob | null {
   const bodies = rebuildBodies(features);

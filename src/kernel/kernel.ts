@@ -9,7 +9,7 @@ import ocWasmUrl from "replicad-opencascadejs/src/replicad_single.wasm?url";
  */
 
 export { ExtrudeError } from "./profile";
-export { rebuildBodies, rebuildSolids, exportSolid, type MeshData } from "./rebuild";
+export { rebuildBodies, rebuildSolids, exportSolid, solidEdges, type MeshData, type Triple } from "./rebuild";
 
 let ocReady: Promise<void> | null = null;
 

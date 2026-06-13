@@ -19,6 +19,7 @@ export function SketchRibbon() {
   const setConstruction = useViewportStore((s) => s.setConstruction);
   const finish = useViewportStore((s) => s.finishSketch);
   const cancel = useViewportStore((s) => s.cancelSketch);
+  const convertEntities = useViewportStore((s) => s.convertEntities);
 
   if (mode !== "sketch" || !hasSketch) return null;
 
@@ -99,6 +100,10 @@ export function SketchRibbon() {
         <Btn def={{ tool: "extend", label: "Extend", icon: "⊢" }} active={tool === "extend"} onClick={setTool} />
         <Btn def={{ tool: "fillet", label: "Fillet", icon: "⌒" }} active={tool === "fillet"} onClick={setTool} />
         <Btn def={{ tool: "sketchChamfer", label: "Chamfer", icon: "◣" }} active={tool === "sketchChamfer"} onClick={setTool} />
+        <button className="ribbon-btn" onClick={() => void convertEntities()} title="Chiếu cạnh khối nằm trên mặt phẳng sketch thành đối tượng vẽ">
+          <span className="ic">⧉</span>
+          Convert
+        </button>
       </Group>
 
       <Sep />

@@ -9,7 +9,7 @@ import {
   type ParametricSketch,
 } from "../sketch/model";
 import { solveSketch } from "../sketch/solveSketch";
-import { initKernel, rebuildSolids, exportSolid, ExtrudeError } from "../kernel/kernel";
+import { initKernel, rebuildSolids, exportSolid, solidEdges, ExtrudeError } from "../kernel/kernel";
 import { isSketch, producesSolid, consumedSketchIds, type BoolOp, type EdgePoint, type Feature } from "../features";
 import { buildSketchGroup } from "../sketch/render3d";
 import { findRegions } from "../kernel/profile";
@@ -177,6 +177,8 @@ interface AppState {
   setSketchTool: (t: SketchTool) => void;
   finishSketch: () => void;
   cancelSketch: () => void;
+  /** Convert Entities: project the solid's coplanar B-rep edges into the sketch. */
+  convertEntities: () => Promise<void>;
 
   setSelection: (sel: SelRef[]) => void;
   setConstruction: (on: boolean) => void;
@@ -621,6 +623,64 @@ export const useViewportStore = create<AppState>((set, get) => ({
   cancelSketch: () => {
     set({ mode: "model", sketchPlaneId: null, sketch: null, editingSketchId: null, selection: [] });
     updateOverlays(get);
+  },
+
+  convertEntities: async () => {
+    const sk = get().sketch;
+    if (!sk) return;
+    if (!get().features.some(producesSolid)) {
+      set({ featureError: "Convert: chưa có khối nào để chiếu cạnh." });
+      return;
+    }
+    if (!(await ensureKernel(set))) return;
+    let edges3d: number[][][];
+    try {
+      edges3d = solidEdges(get().features) as unknown as number[][][];
+    } catch (e) {
+      set({ featureError: "Convert lỗi: " + (e as Error).message });
+      return;
+    }
+    const plane = planeForSketch(sk);
+    const o = plane.origin, u = plane.u, v = plane.v, n = plane.normal;
+    const TOL = 0.1; // coplanarity tolerance (mm)
+    const project = (P: number[]) => {
+      const dx = P[0] - o.x, dy = P[1] - o.y, dz = P[2] - o.z;
+      return {
+        x: dx * u.x + dy * u.y + dz * u.z,
+        y: dx * v.x + dy * v.y + dz * v.z,
+        n: dx * n.x + dy * n.y + dz * n.z, // signed distance to the plane
+      };
+    };
+    let added = 0;
+    get().applyChange((s) => {
+      const goc = (x: number, y: number) => {
+        const hit = s.points.find((p) => Math.hypot(p.x - x, p.y - y) <= 1e-3);
+        if (hit) return hit.id;
+        const id = uid("pt");
+        s.points.push({ id, x, y });
+        return id;
+      };
+      for (const poly of edges3d) {
+        if (poly.length < 2) continue;
+        const pts = poly.map(project);
+        if (!pts.every((p) => Math.abs(p.n) <= TOL)) continue; // not on the sketch plane
+        const a = pts[0], b = pts[pts.length - 1];
+        const abx = b.x - a.x, aby = b.y - a.y, abl = Math.hypot(abx, aby);
+        // Straight edge → single line; otherwise keep the tessellated polyline.
+        const straight =
+          abl > 1e-6 && pts.every((p) => Math.abs((p.x - a.x) * aby - (p.y - a.y) * abx) / abl <= 0.05);
+        if (straight) {
+          s.lines.push({ id: uid("ln"), p1: goc(a.x, a.y), p2: goc(b.x, b.y), construction: false });
+          added++;
+        } else {
+          for (let i = 0; i < pts.length - 1; i++) {
+            s.lines.push({ id: uid("ln"), p1: goc(pts[i].x, pts[i].y), p2: goc(pts[i + 1].x, pts[i + 1].y) });
+          }
+          added++;
+        }
+      }
+    });
+    if (added === 0) set({ featureError: "Convert: không tìm thấy cạnh nào nằm trên mặt phẳng sketch hiện tại." });
   },
 
   setSelection: (selection) => set({ selection }),
