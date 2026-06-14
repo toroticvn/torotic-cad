@@ -1,14 +1,10 @@
 // Runtime verification: multi-body, boolean cut, revolve, loft, sweep, edge fillet, export.
-import { setOC } from "replicad";
-import ocFactory from "replicad-opencascadejs/src/replicad_single.js";
-import path from "node:path";
+import { loadOC } from "./loadOC";
 import { rebuildSolids, exportSolid } from "./rebuild";
 import { emptySketch, type ParametricSketch } from "../sketch/model";
 import type { Feature } from "../features";
 import type { PlaneId as PId } from "../sketch/SketchPlane";
 import { findRegions2D } from "../sketch/regions2d";
-
-const wasmPath = path.resolve("node_modules/replicad-opencascadejs/src/replicad_single.wasm");
 
 let failures = 0;
 const check = (name: string, cond: boolean, detail = "") => {
@@ -49,7 +45,7 @@ function path2(id: string, pts: [number, number][], plane: PId): ParametricSketc
 }
 
 async function main() {
-  setOC((await ocFactory({ locateFile: () => wasmPath })) as Parameters<typeof setOC>[0]);
+  await loadOC();
   console.log("kernel loaded");
 
   const box = (id: string, x0: number, y0: number, x1: number, y1: number, dist: number, op: "new" | "add" | "cut"): Feature[] => [

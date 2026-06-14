@@ -67,17 +67,28 @@ Cơ chế: các feature này nằm trong cây tính năng, sửa số trong pane
 - **Power trim kéo rê** (hiện Trim là click-xoá-cả-đối-tượng).
 - Gán **kích thước/ràng buộc cho ellipse & spline** (hiện chỉ vẽ + đùn, chưa tham số hoá đầy đủ); ellipse/spline cũng **chưa pick/select được**.
 
-## 6. Tình trạng kiểm thử
+## 6. Kiểm thử tự động (không cần thao tác trình duyệt)
+Chạy `NODE_OPTIONS=--use-system-ca npm test` — nạp WASM OpenCASCADE thật trong Node và kiểm tra logic dựng hình:
+- `src/sketch/mirrorSketch.test.ts` — **Sketch Mirror parametric**: sửa bản gốc → bản mirror đi theo (symmetric), đổi kích thước → mirror bằng bán kính (equalRadius), mirror qua trục nghiêng.
+- `src/kernel/mirror.runtime.test.ts` — **Body/Feature Mirror 3D**: merge on/off (1 khối vs 2 khối tách), mirror qua YZ/XZ, mirror feature qua **datum plane** — kiểm bằng bounding box.
+- `src/kernel/rebuild.runtime.test.ts`, `profile.runtime.test.ts` — extrude/cut/revolve/loft/sweep/fillet/export/slot.
+- Helper nạp WASM: `src/kernel/loadOC.ts` (xử lý interop double-`default` của emscripten; bị loại khỏi `tsc` build vì dùng node API).
+- `npm run test:mirror` chỉ chạy 2 bộ Mirror.
+
+## 7. Tình trạng kiểm thử thủ công
 Tất cả công cụ Đợt 1–9 **build pass + đã deploy**, nhưng **chưa kiểm bằng mắt trên trình duyệt**. Cần test thực tế từng tool: đặc biệt Offset (chiều ra/vào), Mirror/Pattern, Move/Rotate/Scale (tâm = trọng tâm cụm chọn), Ellipse/Spline đùn khối, Extend (kéo tới giao điểm), Convert (chiếu cạnh đồng phẳng — nên dùng khi sketch trên một mặt khối), quan hệ Tiếp tuyến/Đồng tâm, và kích thước Góc.
 
-## 7. Gotcha môi trường máy (Windows này)
+## 8. Gotcha môi trường máy (Windows này)
 - Phần mềm kiểm tra SSL/mạng gây lỗi: Node/npm cần `NODE_OPTIONS=--use-system-ca`; git cần `http.sslBackend schannel`; Chrome lỗi `ERR_QUIC_PROTOCOL_ERROR` (dùng Firefox hoặc tắt QUIC); dashboard Cloudflare thỉnh thoảng 500/404 (tải lại / Firefox).
 - KHÔNG dùng cách tắt bảo mật (`strict-ssl false`, `sslVerify false`).
 
-## 8. Lệnh hay dùng
+## 9. Lệnh hay dùng
 ```powershell
 # Build (máy này cần --use-system-ca)
 $env:NODE_OPTIONS = "--use-system-ca"; npm run build
+
+# Test logic dựng hình (không cần trình duyệt)
+$env:NODE_OPTIONS = "--use-system-ca"; npm test
 
 # Deploy = chỉ cần push, Cloudflare tự build
 git add -A; git commit -m "..."; git push origin main

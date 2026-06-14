@@ -1,12 +1,9 @@
 // Runtime verification of extruding profiles that contain ARCS (slot, half-disk).
-import { setOC, Plane, type Sketch, type Shape3D } from "replicad";
-import ocFactory from "replicad-opencascadejs/src/replicad_single.js";
-import path from "node:path";
+import { Plane, type Sketch, type Shape3D } from "replicad";
+import { loadOC } from "./loadOC";
 import { buildProfile } from "./profile";
 import { isCcwThrough } from "../sketch/arc";
 import { emptySketch, type ParametricSketch } from "../sketch/model";
-
-const wasmPath = path.resolve("node_modules/replicad-opencascadejs/src/replicad_single.wasm");
 
 let failures = 0;
 const check = (name: string, cond: boolean, detail = "") => {
@@ -53,7 +50,7 @@ function halfDisk(): ParametricSketch {
 }
 
 async function main() {
-  setOC((await ocFactory({ locateFile: () => wasmPath })) as Parameters<typeof setOC>[0]);
+  await loadOC();
   console.log("kernel loaded");
 
   console.log("Slot (2 lines + 2 arcs) extrude:");
