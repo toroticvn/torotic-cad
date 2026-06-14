@@ -273,7 +273,10 @@ export function rebuildBodies(features: Feature[]): Shape3D[] {
       try {
         const b = bodies[last()];
         const [mp, mo] = mirrorArgs(f.plane, features);
-        bodies[last()] = b.fuse(b.clone().mirror(mp as Parameters<Shape3D["mirror"]>[0], mo)) as Shape3D;
+        const copy = b.clone().mirror(mp as Parameters<Shape3D["mirror"]>[0], mo) as Shape3D;
+        // "Merge solids" (default): fuse into one body. Off: keep a separate body.
+        if (f.merge === false) bodies.push(copy);
+        else bodies[last()] = b.fuse(copy) as Shape3D;
       } catch {
         /* mirror failed — leave unchanged */
       }

@@ -145,8 +145,12 @@ export function FeatureEditor() {
       {feature?.type === "mirrorBody" && (
         <div className="pm-section">
           <div className="pm-heading">{feature.name}</div>
-          <div className="pm-instruction">Soi gương khối qua mặt phẳng rồi nối lại.</div>
+          <div className="pm-instruction">Soi gương khối qua mặt phẳng.</div>
           <MirrorPlaneSelect value={feature.plane} features={features} disabled={busy} onChange={(plane) => update(feature.id, { plane })} />
+          <label className="pm-option">
+            <input type="checkbox" checked={feature.merge !== false} disabled={busy} onChange={(e) => update(feature.id, { merge: e.target.checked })} />
+            <span>Gộp khối (Merge solids) — bỏ chọn để tạo khối riêng (đối xứng tay trái/phải)</span>
+          </label>
           <DeleteBtn onClick={() => del(feature.id)} />
         </div>
       )}

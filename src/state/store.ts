@@ -196,6 +196,7 @@ interface AppState {
       plane: string;
       flip: boolean;
       midplane: boolean;
+      merge: boolean;
       base: string;
       offset: number;
     }>,

@@ -100,6 +100,9 @@ export interface MirrorBodyFeature {
   type: "mirrorBody";
   name: string;
   plane: string;
+  /** SolidWorks "Merge solids": fuse the mirror into the original (default), or
+   * keep it as a separate body (for opposite-hand / multi-body parts). */
+  merge?: boolean;
 }
 
 /** Duplicate the running solid in a linear array (fused). */
