@@ -33,6 +33,25 @@ export interface MeshData {
   edgeCurves: { points: Triple[]; rep: Triple }[];
 }
 
+/** front→XY, top→XZ, right→YZ ; and the +normal direction of each base. */
+const BASE_TO_PLANE = { front: "XY", top: "XZ", right: "YZ" } as const;
+const BASE_NORMAL = { front: [0, 0, 1], top: [0, 1, 0], right: [1, 0, 0] } as const;
+
+/**
+ * Resolve a mirror-plane reference (a standard plane name OR a datum-plane
+ * feature id) into replicad `.mirror(plane, origin?)` arguments.
+ */
+function mirrorArgs(planeRef: string, features: Feature[]): [string, Triple?] {
+  if (planeRef === "XY" || planeRef === "XZ" || planeRef === "YZ") return [planeRef];
+  const rp = features.find((f) => f.id === planeRef && f.type === "refPlane");
+  if (rp && rp.type === "refPlane") {
+    const name = BASE_TO_PLANE[rp.base];
+    const n = BASE_NORMAL[rp.base];
+    return [name, [n[0] * rp.offset, n[1] * rp.offset, n[2] * rp.offset]];
+  }
+  return ["YZ"]; // fallback
+}
+
 function makePlane(sp: SketchPlane): Plane {
   return new Plane(
     [sp.origin.x, sp.origin.y, sp.origin.z],
@@ -241,7 +260,8 @@ export function rebuildBodies(features: Feature[]): Shape3D[] {
       const sk = sketches.get(target.sketchId);
       if (!sk) continue;
       try {
-        const tool = buildFeatureSolid(sk, target).mirror(f.plane) as Shape3D;
+        const [mp, mo] = mirrorArgs(f.plane, features);
+        const tool = buildFeatureSolid(sk, target).mirror(mp as Parameters<Shape3D["mirror"]>[0], mo) as Shape3D;
         bodies[last()] = (target.operation === "cut" ? bodies[last()].cut(tool) : bodies[last()].fuse(tool)) as Shape3D;
       } catch {
         /* mirror failed — leave unchanged */
@@ -252,7 +272,8 @@ export function rebuildBodies(features: Feature[]): Shape3D[] {
       if (bodies.length === 0) continue;
       try {
         const b = bodies[last()];
-        bodies[last()] = b.fuse(b.clone().mirror(f.plane)) as Shape3D;
+        const [mp, mo] = mirrorArgs(f.plane, features);
+        bodies[last()] = b.fuse(b.clone().mirror(mp as Parameters<Shape3D["mirror"]>[0], mo)) as Shape3D;
       } catch {
         /* mirror failed — leave unchanged */
       }

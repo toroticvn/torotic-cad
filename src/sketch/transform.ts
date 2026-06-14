@@ -40,18 +40,28 @@ function getOrCreate(s: ParametricSketch, p: Point2): string {
   return pt.id;
 }
 
+/** What `cloneEntities` produced, so callers can add relations (Mirror). */
+export interface CloneResult {
+  /** source point id -> cloned point id (same id when point landed on an existing one). */
+  points: Map<string, string>;
+  /** source circle id -> cloned circle id. */
+  circles: { src: string; id: string }[];
+}
+
 /**
  * Clone the selected lines/circles/arcs into the sketch, mapping each point
  * through `map`. `flipArc` reverses arc orientation (needed for mirroring).
  * Points shared between selected entities are kept shared within one pass.
+ * Returns the id mapping so Mirror can link copies with symmetric relations.
  */
 export function cloneEntities(
   s: ParametricSketch,
   refs: SelRef[],
   map: (p: Point2) => Point2,
   flipArc: boolean
-): void {
+): CloneResult {
   const remap = new Map<string, string>();
+  const circles: { src: string; id: string }[] = [];
   const newId = (oldId: string): string => {
     const cached = remap.get(oldId);
     if (cached) return cached;
@@ -67,7 +77,11 @@ export function cloneEntities(
       if (l) s.lines.push({ id: tid("ln"), p1: newId(l.p1), p2: newId(l.p2), construction: l.construction });
     } else if (ref.kind === "circle") {
       const c = s.circles.find((x) => x.id === ref.id);
-      if (c) s.circles.push({ id: tid("cir"), center: newId(c.center), r: c.r, construction: c.construction });
+      if (c) {
+        const id = tid("cir");
+        s.circles.push({ id, center: newId(c.center), r: c.r, construction: c.construction });
+        circles.push({ src: c.id, id });
+      }
     } else if (ref.kind === "arc") {
       const a = s.arcs.find((x) => x.id === ref.id);
       if (a)
@@ -81,6 +95,12 @@ export function cloneEntities(
         });
     }
   }
+  return { points: remap, circles };
+}
+
+/** Id generator for relations created alongside a clone (e.g. Mirror symmetry). */
+export function relId(prefix: string): string {
+  return tid(prefix);
 }
 
 /** Unique point ids referenced by the selected entities. */

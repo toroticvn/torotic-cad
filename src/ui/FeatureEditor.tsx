@@ -1,4 +1,5 @@
 import { useViewportStore } from "../state/store";
+import type { Feature } from "../features";
 
 /** Right panel (model mode): inspect/edit the selected feature; rebuilds live. */
 export function FeatureEditor() {
@@ -145,14 +146,7 @@ export function FeatureEditor() {
         <div className="pm-section">
           <div className="pm-heading">{feature.name}</div>
           <div className="pm-instruction">Soi gương khối qua mặt phẳng rồi nối lại.</div>
-          <label className="pm-option">
-            Mặt phẳng
-            <select value={feature.plane} disabled={busy} onChange={(e) => update(feature.id, { plane: e.target.value })}>
-              <option value="YZ">YZ (trái–phải)</option>
-              <option value="XZ">XZ (trước–sau)</option>
-              <option value="XY">XY (trên–dưới)</option>
-            </select>
-          </label>
+          <MirrorPlaneSelect value={feature.plane} features={features} disabled={busy} onChange={(plane) => update(feature.id, { plane })} />
           <DeleteBtn onClick={() => del(feature.id)} />
         </div>
       )}
@@ -243,14 +237,7 @@ export function FeatureEditor() {
         <div className="pm-section">
           <div className="pm-heading">{feature.name}</div>
           <div className="pm-instruction">Soi gương feature gốc qua mặt phẳng.</div>
-          <label className="pm-option">
-            Mặt phẳng
-            <select value={feature.plane} disabled={busy} onChange={(e) => update(feature.id, { plane: e.target.value })}>
-              <option value="YZ">YZ (trái–phải)</option>
-              <option value="XZ">XZ (trước–sau)</option>
-              <option value="XY">XY (trên–dưới)</option>
-            </select>
-          </label>
+          <MirrorPlaneSelect value={feature.plane} features={features} disabled={busy} onChange={(plane) => update(feature.id, { plane })} />
           <DeleteBtn onClick={() => del(feature.id)} />
         </div>
       )}
@@ -268,6 +255,38 @@ function OpSelect({ value, onChange, disabled }: { value: string; onChange: (op:
         <option value="new">Khối mới</option>
         <option value="add">Thêm</option>
         <option value="cut">Cắt</option>
+      </select>
+    </label>
+  );
+}
+
+/** Mirror-about-plane picker: 3 standard planes + any datum planes in the tree. */
+function MirrorPlaneSelect({
+  value,
+  features,
+  disabled,
+  onChange,
+}: {
+  value: string;
+  features: Feature[];
+  disabled?: boolean;
+  onChange: (plane: string) => void;
+}) {
+  const datums = features.filter((f) => f.type === "refPlane");
+  return (
+    <label className="pm-option">
+      Mặt phẳng
+      <select value={value} disabled={disabled} onChange={(e) => onChange(e.target.value)}>
+        <option value="YZ">YZ (trái–phải)</option>
+        <option value="XZ">XZ (trước–sau)</option>
+        <option value="XY">XY (trên–dưới)</option>
+        {datums.length > 0 && (
+          <optgroup label="Datum plane">
+            {datums.map((d) => (
+              <option key={d.id} value={d.id}>{d.name}</option>
+            ))}
+          </optgroup>
+        )}
       </select>
     </label>
   );

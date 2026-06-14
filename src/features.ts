@@ -91,12 +91,15 @@ export interface ChamferFeature {
   edges?: EdgePoint[];
 }
 
-/** Mirror the running solid about a standard plane and fuse the copy. */
+/**
+ * Mirror the running solid about a plane and fuse the copy.
+ * `plane` is a standard plane ("XY" | "XZ" | "YZ") or a datum plane feature id.
+ */
 export interface MirrorBodyFeature {
   id: string;
   type: "mirrorBody";
   name: string;
-  plane: "XY" | "XZ" | "YZ";
+  plane: string;
 }
 
 /** Duplicate the running solid in a linear array (fused). */
@@ -143,13 +146,16 @@ export interface FeaturePatternCircular {
   axis: "x" | "y" | "z";
 }
 
-/** Mirror a single solid feature (extrude/revolve) across a standard plane. */
+/**
+ * Mirror a single solid feature (extrude/revolve) across a plane.
+ * `plane` is a standard plane ("XY" | "XZ" | "YZ") or a datum plane feature id.
+ */
 export interface FeatureMirror {
   id: string;
   type: "featMirror";
   name: string;
   targetId: string;
-  plane: "XY" | "XZ" | "YZ";
+  plane: string;
 }
 
 /** Hollow out the running solid, removing the picked faces, keeping `thickness`. */

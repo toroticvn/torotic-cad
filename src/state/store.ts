@@ -19,6 +19,7 @@ import { buildClaudePrompt } from "../ai/prompt";
 import { designToFeatures } from "../ai/design";
 import {
   cloneEntities,
+  relId,
   offsetEntities,
   reflectAcross,
   rotateAbout,
@@ -996,7 +997,17 @@ export const useViewportStore = create<AppState>((set, get) => ({
       if (!line) return;
       const a = s.points.find((p) => p.id === line.p1)!;
       const b = s.points.find((p) => p.id === line.p2)!;
-      cloneEntities(s, entities, (p) => reflectAcross(p, a, b), true);
+      const res = cloneEntities(s, entities, (p) => reflectAcross(p, a, b), true);
+      // SolidWorks logic: link original ↔ mirror with symmetric relations so the
+      // copy stays parametric (edit the original → the mirror follows).
+      for (const [src, dst] of res.points) {
+        if (src === dst) continue; // point lies on the axis — nothing to link
+        s.constraints.push({ id: relId("sym"), type: "symmetric", p1: src, p2: dst, line: axisRef.id });
+      }
+      // Mirrored circles keep equal radius to their source.
+      for (const { src, id } of res.circles) {
+        s.constraints.push({ id: relId("eqr"), type: "equalRadius", c1: src, c2: id });
+      }
     });
     get().setSelection([]);
   },
