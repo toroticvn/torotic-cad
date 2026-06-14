@@ -14,7 +14,7 @@
 3. Vẽ **một nửa hình** (Đường / Tròn / Cung …) ở một bên trục.
 4. Bấm công cụ **Chọn** (🖱️) trên ribbon.
 5. Click chọn **các nét cần soi gương** + click **đường tâm** (mẹo: chọn đường tâm **cuối cùng** — nó được lấy làm trục).
-6. Panel **bên trái** → mục **"Mirror & Pattern"** → bấm nút **Mirror**.
+6. Trên **ribbon**, nhóm **"Biến đổi"** → bấm **🪞 Mirror**. (Cũng có ở panel trái, mục "Mirror & Pattern".)
 
 ✅ Nửa còn lại xuất hiện, đối xứng và **gắn quan hệ symmetric**. Thử kéo/sửa nửa gốc → nửa mirror đi theo.
 

@@ -34,7 +34,7 @@ Kiến trúc thêm 1 tool: (1) `SketchTool` union trong `store.ts`; (2) nút tro
 |---|---|
 | **Đối tượng** | Đường, Đường tâm, Điểm, Chữ nhật (góc/tâm/3 điểm), Hình bình hành, Tròn (tâm / 3 điểm), Ellipse, Spline, Đa giác, Cung (tâm/3 điểm/tiếp tuyến), Slot |
 | **Sửa** | Trim, Extend, Fillet, Chamfer, Convert entities (chiếu cạnh khối đồng phẳng) |
-| **Biến đổi** | Offset (chọn cạnh + chiều ra/vào), Mirror, Pattern thẳng, Pattern tròn, Move, Copy, Rotate, Scale |
+| **Biến đổi** | Offset (chọn cạnh + chiều ra/vào), Mirror, Pattern thẳng, Pattern tròn, Move, Copy, Rotate, Scale — **nút Mirror/Pattern/Offset có ngay trên ribbon (nhóm "Biến đổi")**; tham số (số lượng/khoảng cách) ở panel trái |
 | **Quan hệ** | Ngang, Dọc, Song song, Vuông góc, Thẳng hàng, Bằng nhau, Trùng điểm, Trung điểm, Đối xứng, Đồng tâm, Tiếp tuyến, Cố định/Bỏ cố định, Đổi nét dựng |
 | **Kích thước** | Smart Dimension (khoảng cách, bán kính, **góc**) |
 

@@ -20,8 +20,21 @@ export function SketchRibbon() {
   const finish = useViewportStore((s) => s.finishSketch);
   const cancel = useViewportStore((s) => s.cancelSketch);
   const convertEntities = useViewportStore((s) => s.convertEntities);
+  // Transform actions (operate on the current selection) — surfaced on the ribbon.
+  const selection = useViewportStore((s) => s.selection);
+  const mirror = useViewportStore((s) => s.mirrorSelection);
+  const linear = useViewportStore((s) => s.linearPattern);
+  const circular = useViewportStore((s) => s.circularPattern);
+  const offset = useViewportStore((s) => s.offsetSelection);
 
   if (mode !== "sketch" || !hasSketch) return null;
+
+  const nEntities = selection.filter((s) => s.kind !== "point").length;
+  // Run a selection-based transform: make sure the Select tool is active first.
+  const run = (fn: () => void) => {
+    setTool("select");
+    fn();
+  };
 
   return (
     <div className="ribbon">
@@ -107,6 +120,25 @@ export function SketchRibbon() {
       </Group>
 
       <Sep />
+
+      <Group title="Biến đổi">
+        <button className="ribbon-btn" disabled={nEntities < 1} onClick={() => run(mirror)} title="Soi gương: chọn nét + 1 đường tâm (đường chọn cuối là trục) rồi bấm">
+          <span className="ic">🪞</span>
+          Mirror
+        </button>
+        <button className="ribbon-btn" disabled={nEntities < 1} onClick={() => run(linear)} title="Sao chép thành dãy thẳng (số lượng/khoảng cách ở panel trái)">
+          <span className="ic">▦</span>
+          Pattern thẳng
+        </button>
+        <button className="ribbon-btn" disabled={nEntities < 1} onClick={() => run(circular)} title="Sao chép quanh tâm (chọn 1 điểm làm tâm; số lượng/tổng góc ở panel trái)">
+          <span className="ic">🔄</span>
+          Pattern tròn
+        </button>
+        <button className="ribbon-btn" disabled={nEntities < 1} onClick={() => run(() => offset(true))} title="Offset ra ngoài (khoảng cách + chiều vào/ra tinh chỉnh ở panel trái)">
+          <span className="ic">⟶</span>
+          Offset
+        </button>
+      </Group>
 
       <Group title="Hiển thị">
         <button
