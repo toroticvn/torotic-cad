@@ -327,7 +327,27 @@ export const useViewportStore = create<AppState>((set, get) => ({
     try {
       const image = vp.captureImage(1024);
       const reply = await chatRequest(messages, image, get().features);
-      set({ chatMessages: [...messages, { role: "assistant", text: reply }], chatBusy: false });
+      let text = reply.text;
+
+      // The assistant chose to draw/modify — apply its design to the model.
+      if (reply.design) {
+        const existingSolid = get().features.some(producesSolid);
+        const append = reply.design.mode !== "replace" && existingSolid;
+        const newFeats = designToFeatures(reply.design, { continueSolid: append });
+        if (newFeats.length > 0) {
+          pushHistory(get, set);
+          const features = append ? [...get().features, ...newFeats] : newFeats;
+          set({ features, selectedFeatureId: null, mode: "model", sketch: null });
+          try {
+            await rebuild(get, set);
+            text += `\n\n✅ *Đã ${append ? "vẽ tiếp" : "dựng"} mô hình trong phần mềm (${newFeats.length} bước).*`;
+          } catch {
+            text += "\n\n⚠️ *Đã tạo feature nhưng dựng khối lỗi — thử mô tả lại hoặc chỉnh số đo.*";
+          }
+        }
+      }
+
+      set({ chatMessages: [...messages, { role: "assistant", text }], chatBusy: false });
     } catch (e) {
       set({ chatError: (e as Error).message, chatBusy: false });
     }

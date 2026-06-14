@@ -6,12 +6,18 @@ export interface ChatTurn {
   text: string;
 }
 
+export interface ChatReply {
+  text: string;
+  /** When set, Claude chose to draw/modify — apply this design on the client. */
+  design?: Design | null;
+}
+
 /**
  * Send the conversation + current viewport image + feature tree to the
  * server-side /api/chat function (Claude). The Anthropic key stays on the
  * server — the browser only talks to /api.
  */
-export async function chat(messages: ChatTurn[], image: string, features: Feature[]): Promise<string> {
+export async function chat(messages: ChatTurn[], image: string, features: Feature[]): Promise<ChatReply> {
   let resp: Response;
   try {
     resp = await fetch("/api/chat", {
@@ -23,7 +29,7 @@ export async function chat(messages: ChatTurn[], image: string, features: Featur
     throw new Error("Không kết nối được máy chủ AI: " + (e as Error).message);
   }
 
-  let data: { text?: string; error?: string } = {};
+  let data: { text?: string; design?: Design | null; error?: string } = {};
   try {
     data = await resp.json();
   } catch {
@@ -36,7 +42,7 @@ export async function chat(messages: ChatTurn[], image: string, features: Featur
     }
     throw new Error(data.error || `Máy chủ lỗi (${resp.status}).`);
   }
-  return data.text || "(Không có nội dung.)";
+  return { text: data.text || "(Không có nội dung.)", design: data.design ?? null };
 }
 
 /** Ask Claude (via /api/generate, tool use) to design a 3D part from a description. */

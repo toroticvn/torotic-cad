@@ -80,7 +80,14 @@ export function ChatPanel() {
       <div className="chat-scroll" ref={scrollRef}>
         {messages.length === 0 && !busy && (
           <div className="chat-empty">
-            Hỏi bất cứ điều gì về mô hình đang vẽ — đánh giá thiết kế, giải thích, gợi ý cải tiến, cách thao tác… AI tự xem ảnh + cây tính năng hiện tại.
+            <p><b>Trợ lý có thể TỰ VẼ và TỰ SỬA mô hình cho bạn.</b> Cứ chat như nói với một kỹ sư:</p>
+            <ul>
+              <li>"Vẽ tấm 100×60 dày 10mm"</li>
+              <li>"Khoan 4 lỗ φ8 ở 4 góc, cách mép 12mm"</li>
+              <li>"Thêm trụ φ20 cao 30 ở giữa"</li>
+              <li>"Bo tròn các cạnh R3"</li>
+            </ul>
+            <p>Hoặc hỏi để được hướng dẫn / đánh giá thiết kế — AI tự xem ảnh + cây tính năng hiện tại.</p>
           </div>
         )}
         {messages.map((m, i) => (
@@ -106,7 +113,7 @@ export function ChatPanel() {
               submit();
             }
           }}
-          placeholder="Nhập câu hỏi… (Enter để gửi, Shift+Enter xuống dòng)"
+          placeholder="Nhờ AI vẽ/sửa hoặc hỏi… (Enter gửi, Shift+Enter xuống dòng)"
           rows={2}
         />
         <button onClick={submit} disabled={busy || !draft.trim()}>Gửi</button>

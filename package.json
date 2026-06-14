@@ -8,7 +8,7 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
-    "test": "tsx src/sketch/mirrorSketch.test.ts && tsx src/kernel/mirror.runtime.test.ts && tsx src/kernel/rebuild.runtime.test.ts && tsx src/kernel/profile.runtime.test.ts",
+    "test": "tsx src/sketch/mirrorSketch.test.ts && tsx src/kernel/mirror.runtime.test.ts && tsx src/ai/aiDesign.runtime.test.ts && tsx src/kernel/rebuild.runtime.test.ts && tsx src/kernel/profile.runtime.test.ts",
     "test:mirror": "tsx src/sketch/mirrorSketch.test.ts && tsx src/kernel/mirror.runtime.test.ts"
   },
   "dependencies": {

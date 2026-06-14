@@ -16,10 +16,13 @@
 
 ## 3. Tính năng AI (Claude)
 Backend = **Cloudflare Pages Functions** (`functions/api/*.ts`), gọi Claude `claude-opus-4-8`. Có 3 nút trên thanh công cụ + 1 nút thủ công:
-- **🪄 AI vẽ** (`/api/generate`, tool use) — mô tả bằng lời → dựng khối 3D.
-- **💬 Trợ lý AI** (`/api/chat`) — chat hỏi đáp, AI thấy ảnh viewport + cây tính năng.
+- **💬 Trợ lý AI (agentic)** (`/api/chat`) — **vừa tư vấn vừa TỰ VẼ/TỰ SỬA**. Claude có công cụ `apply_design` (tool use, `tool_choice` auto): hỏi → trả lời/hướng dẫn; bảo "vẽ…/khoan lỗ…/thêm trụ…" → tự dựng ngay trong app kèm giải thích. AI thấy ảnh viewport + cây tính năng mỗi lượt.
+  - Chế độ **append** (vẽ tiếp): nếu đã có khối, design mới được nối vào cây hiện tại (op đầu thành add/cut thay vì new). Xem `designToFeatures(design, { continueSolid })` + `sendChat` trong store.
+- **🪄 AI vẽ** (`/api/generate`, tool use ép buộc) — hộp thoại mô tả 1 lần → dựng khối mới (đường tắt; chat làm được nhiều hơn).
 - **✨ Đánh giá** — gửi câu hỏi đánh giá vào chat.
 - **📋 Claude.ai** — đường thủ công, miễn phí bằng gói Pro/Max (tải ảnh + copy prompt + mở claude.ai).
+
+> Pipeline "AI vẽ" được kiểm bằng `src/ai/aiDesign.runtime.test.ts` (design → feature → khối thật, cả replace lẫn append + khoan lỗ + boss + fillet).
 
 ### ⚠️ Điều quan trọng về AI (đã trả giá để học)
 - **Claude API ≠ gói Claude Pro/Max** — tính tiền riêng. Phải nạp credit API ở console.anthropic.com (đã nạp $5).

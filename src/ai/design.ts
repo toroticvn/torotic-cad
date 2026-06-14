@@ -24,6 +24,8 @@ export interface DesignOp {
 
 export interface Design {
   name?: string;
+  /** "replace" = start a fresh model; "append" = add onto the current model. */
+  mode?: "replace" | "append";
   operations: DesignOp[];
 }
 
@@ -66,11 +68,15 @@ function extrude(name: string, sketchId: string, distance: number, operation: Bo
   return { id: id("extrude"), type: "extrude", name, sketchId, distance, operation };
 }
 
-/** Expand an AI design into a concrete, rebuildable feature tree. */
-export function designToFeatures(design: Design): Feature[] {
+/**
+ * Expand an AI design into a concrete, rebuildable feature tree.
+ * `continueSolid` = the design is appended onto an existing model that already
+ * has a solid body, so the first op should boolean-combine (add/cut), not "new".
+ */
+export function designToFeatures(design: Design, opts?: { continueSolid?: boolean }): Feature[] {
   const ops = Array.isArray(design?.operations) ? design.operations : [];
   const features: Feature[] = [];
-  let hasSolid = false;
+  let hasSolid = !!opts?.continueSolid;
   let n = 0;
 
   for (const o of ops) {
