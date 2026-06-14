@@ -64,6 +64,41 @@ async function main() {
   check("boss + fillet builds a valid body", bossSolid.length >= 1 && bossSolid[0].indices.length > 0,
     `bodies=${bossSolid.length} tris=${bossSolid[0]?.indices.length}`);
 
+  console.log("Runtime: free-form polygon profile (L-shape) extrude:");
+  const lShape: Design = {
+    operations: [
+      {
+        shape: "polygon",
+        h: 10,
+        points: [
+          [0, 0], [60, 0], [60, 20], [20, 20], [20, 50], [0, 50],
+        ],
+      },
+    ],
+  };
+  const lSolid = rebuildSolids(designToFeatures(lShape));
+  check("L-shape polygon builds one body", lSolid.length === 1 && lSolid[0].indices.length > 0, `bodies=${lSolid.length}`);
+
+  console.log("Runtime: mirror the whole solid about YZ (append):");
+  const asym: Feature[] = designToFeatures({ operations: [{ shape: "box", x: 30, y: 0, w: 40, d: 20, h: 10 }] });
+  const mir = designToFeatures({ mode: "append", operations: [{ shape: "mirror", mirrorPlane: "YZ", merge: true }] }, { continueSolid: true });
+  const mirSolid = rebuildSolids([...asym, ...mir]);
+  check("mirror keeps one merged body", mirSolid.length === 1 && mirSolid[0].indices.length > 0, `bodies=${mirSolid.length}`);
+
+  console.log("Runtime: linear pattern of the solid (append):");
+  const pat = designToFeatures({ mode: "append", operations: [{ shape: "patternLinear", count: 3, dx: 50 }] }, { continueSolid: true });
+  const baseBox = designToFeatures({ operations: [{ shape: "box", w: 20, d: 20, h: 10 }] });
+  const patSolid = rebuildSolids([...baseBox, ...pat]);
+  check("linear pattern builds a body", patSolid.length >= 1 && patSolid[0].indices.length > 0, `bodies=${patSolid.length}`);
+
+  console.log("Pure: delete-target matching (by name) filters the tree:");
+  const tree = designToFeatures({ operations: [{ shape: "box", w: 40, d: 40, h: 10 }] });
+  const holeF = designToFeatures({ mode: "append", operations: [{ shape: "hole", diameter: 8, depth: 20 }] }, { continueSolid: true });
+  const full = [...tree, ...holeF];
+  const targets = new Set(["hole1"]); // matches the appended hole's extrude name
+  const kept = full.filter((f) => !targets.has(f.name.toLowerCase()));
+  check("delete by name removes the hole feature", kept.length === full.length - 1, `before=${full.length} after=${kept.length}`);
+
   console.log(failures === 0 ? "\nALL PASS" : `\n${failures} FAILED`);
   process.exit(failures === 0 ? 0 : 1);
 }

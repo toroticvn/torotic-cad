@@ -331,18 +331,34 @@ export const useViewportStore = create<AppState>((set, get) => ({
 
       // The assistant chose to draw/modify — apply its design to the model.
       if (reply.design) {
-        const existingSolid = get().features.some(producesSolid);
-        const append = reply.design.mode !== "replace" && existingSolid;
-        const newFeats = designToFeatures(reply.design, { continueSolid: append });
-        if (newFeats.length > 0) {
+        const d = reply.design;
+        const append = d.mode !== "replace" && get().features.some(producesSolid);
+
+        // In append mode the assistant may ask to remove existing features first
+        // (e.g. to "change" a feature = delete + redraw). Match by id or name.
+        let base = get().features;
+        let removed = 0;
+        if (append && Array.isArray(d.delete) && d.delete.length) {
+          const targets = new Set(d.delete.map((s) => String(s).toLowerCase()));
+          const kept = base.filter((f) => !(targets.has(f.id.toLowerCase()) || targets.has(f.name.toLowerCase())));
+          removed = base.length - kept.length;
+          base = kept;
+        }
+
+        const newFeats = designToFeatures(d, { continueSolid: append && base.some(producesSolid), nameStart: append ? base.length : 0 });
+        const willApply = append ? newFeats.length > 0 || removed > 0 : newFeats.length > 0;
+        if (willApply) {
           pushHistory(get, set);
-          const features = append ? [...get().features, ...newFeats] : newFeats;
+          const features = append ? [...base, ...newFeats] : newFeats;
           set({ features, selectedFeatureId: null, mode: "model", sketch: null });
           try {
             await rebuild(get, set);
-            text += `\n\n✅ *Đã ${append ? "vẽ tiếp" : "dựng"} mô hình trong phần mềm (${newFeats.length} bước).*`;
+            const parts: string[] = [];
+            if (removed > 0) parts.push(`xoá ${removed} feature`);
+            if (newFeats.length > 0) parts.push(`${append ? "vẽ tiếp" : "dựng"} ${newFeats.length} bước`);
+            text += `\n\n✅ *Đã ${parts.join(", ")} trong phần mềm.*`;
           } catch {
-            text += "\n\n⚠️ *Đã tạo feature nhưng dựng khối lỗi — thử mô tả lại hoặc chỉnh số đo.*";
+            text += "\n\n⚠️ *Đã cập nhật feature nhưng dựng khối lỗi — thử mô tả lại hoặc chỉnh số đo.*";
           }
         }
       }

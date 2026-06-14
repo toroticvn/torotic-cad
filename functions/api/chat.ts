@@ -45,7 +45,11 @@ Bạn có thể làm 2 việc:
 Khi gọi apply_design:
 - Đơn vị milimét. Mặt phẳng mặc định "top" (u = phải, v = sâu, đùn lên trên). x,y là TÂM hình trên mặt phẳng; offset = dịch mặt phẳng theo phương đùn (đặt khối lên khối cao 10 → offset 10).
 - mode="replace" để vẽ MỚI từ đầu; mode="append" để VẼ TIẾP lên mô hình hiện có (nhìn feature_tree: nếu đã có khối thì thường dùng append).
-- Thao tác đầu của một mô hình mới phải là "box" hoặc "cylinder" op "new". Lỗ dùng shape "hole" (tự cut; muốn xuyên thủng đặt depth ≥ chiều cao khối).
+- Thao tác đầu của một mô hình mới phải là "box" hoặc "cylinder" (hoặc "polygon") op "new". Lỗ dùng shape "hole" (tự cut; muốn xuyên thủng đặt depth ≥ chiều cao khối).
+- Hình tự do (không phải hộp/trụ): dùng shape "polygon" với "points" = danh sách [x,y] các đỉnh theo thứ tự (khép kín, ≥3 đỉnh), kèm "h" để đùn.
+- Soi gương cả khối: shape "mirror", "mirrorPlane" ∈ {XY,XZ,YZ}, "merge" (true=gộp 1 khối, false=2 khối).
+- Lặp khối: "patternLinear" (count, dx,dy,dz) hoặc "patternCircular" (count, totalAngle, axis ∈ {x,y,z}).
+- Để SỬA/XOÁ: nếu cần bỏ feature cũ, đặt tên/id của chúng vào mảng "delete" (lấy từ feature_tree). Muốn đổi kích thước một feature thì xoá nó rồi dựng lại bằng số mới.
 - Suy luận hợp lý kích thước/vị trí còn thiếu. LUÔN kèm một đoạn text ngắn (tiếng Việt) giải thích các bước bạn vừa dựng.
 
 Trả lời bằng tiếng Việt, ngắn gọn, chính xác, dùng markdown khi hợp lý. Không bịa số đo không có trong dữ liệu; nếu thiếu, nêu rõ giả định.`;
@@ -59,24 +63,42 @@ const APPLY_DESIGN_TOOL = {
     properties: {
       name: { type: "string", description: "Tên ngắn cho thiết kế/bước này" },
       mode: { type: "string", enum: ["replace", "append"], description: "replace=vẽ mới; append=vẽ tiếp lên mô hình hiện có" },
+      delete: {
+        type: "array",
+        description: "Tên hoặc id các feature cần xoá trước (lấy từ feature_tree). Chỉ dùng với append.",
+        items: { type: "string" },
+      },
       operations: {
         type: "array",
         description: "Danh sách thao tác, theo thứ tự dựng.",
         items: {
           type: "object",
           properties: {
-            shape: { type: "string", enum: ["box", "cylinder", "hole", "fillet", "chamfer"] },
-            op: { type: "string", enum: ["new", "add", "cut"], description: "Phép boolean (box/cylinder/hole)" },
+            shape: { type: "string", enum: ["box", "cylinder", "hole", "fillet", "chamfer", "polygon", "mirror", "patternLinear", "patternCircular"] },
+            op: { type: "string", enum: ["new", "add", "cut"], description: "Phép boolean (box/cylinder/hole/polygon)" },
             plane: { type: "string", enum: ["top", "front", "right"], description: "Mặt phẳng sketch (mặc định top)" },
             offset: { type: "number", description: "Dịch mặt phẳng theo phương đùn (mm)" },
             x: { type: "number", description: "Toạ độ tâm theo trục u (mm)" },
             y: { type: "number", description: "Toạ độ tâm theo trục v (mm)" },
             w: { type: "number", description: "Chiều rộng hộp theo u (mm)" },
             d: { type: "number", description: "Chiều sâu hộp theo v (mm)" },
-            h: { type: "number", description: "Chiều cao đùn của box/cylinder (mm)" },
+            h: { type: "number", description: "Chiều cao đùn của box/cylinder/polygon (mm)" },
             diameter: { type: "number", description: "Đường kính cylinder/hole (mm)" },
             depth: { type: "number", description: "Chiều sâu khoét của hole (mm)" },
             radius: { type: "number", description: "Bán kính fillet/chamfer (mm)" },
+            points: {
+              type: "array",
+              description: "polygon: các đỉnh [x,y] theo thứ tự, khép kín (≥3).",
+              items: { type: "array", items: { type: "number" }, minItems: 2, maxItems: 2 },
+            },
+            mirrorPlane: { type: "string", enum: ["XY", "XZ", "YZ"], description: "mirror: mặt phẳng soi gương" },
+            merge: { type: "boolean", description: "mirror: gộp thành 1 khối (mặc định true)" },
+            count: { type: "number", description: "pattern: tổng số bản (gồm bản gốc)" },
+            dx: { type: "number", description: "patternLinear: bước theo X (mm)" },
+            dy: { type: "number", description: "patternLinear: bước theo Y (mm)" },
+            dz: { type: "number", description: "patternLinear: bước theo Z (mm)" },
+            totalAngle: { type: "number", description: "patternCircular: tổng góc (độ)" },
+            axis: { type: "string", enum: ["x", "y", "z"], description: "patternCircular: trục quay" },
           },
           required: ["shape"],
         },
