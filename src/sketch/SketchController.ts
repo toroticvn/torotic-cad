@@ -1187,7 +1187,7 @@ export class SketchController {
         const ps = [pt(l1.p1), pt(l1.p2), pt(l2.p1), pt(l2.p2)];
         const cx = ps.reduce((s, p) => s + p.x, 0) / 4;
         const cy = ps.reduce((s, p) => s + p.y, 0) / 4;
-        objs.push(this.label3({ x: cx, y: cy }, `${round(d.value)}°`));
+        objs.push(this.label3({ x: cx, y: cy }, `${round(Math.abs(d.value))}°`));
       }
     }
     return objs;

@@ -1129,9 +1129,13 @@ export const useViewportStore = create<AppState>((set, get) => ({
       const a1 = pt(l1.p1), a2 = pt(l1.p2), b1 = pt(l2.p1), b2 = pt(l2.p2);
       const cross = (a2.x - a1.x) * (b2.y - b1.y) - (a2.y - a1.y) * (b2.x - b1.x);
       const dot = (a2.x - a1.x) * (b2.x - b1.x) + (a2.y - a1.y) * (b2.y - b1.y);
-      const deg = Math.round(((Math.atan2(cross, dot) * 180) / Math.PI) * 100) / 100;
+      let deg = Math.round(((Math.atan2(cross, dot) * 180) / Math.PI) * 100) / 100;
+      // Show a positive angle (0–180°) like SolidWorks: if the signed angle is
+      // negative, measure from the other line instead (same geometry, +value).
+      const refs = deg < 0 ? [line2, line1] : [line1, line2];
+      deg = Math.abs(deg);
       const name = `d${s.dimensions.length + 1}`;
-      s.dimensions.push({ id: uid("dim"), name, kind: "angle", refs: [line1, line2], value: deg });
+      s.dimensions.push({ id: uid("dim"), name, kind: "angle", refs, value: deg });
     }),
 
   updateDimension: (id, patch) =>
