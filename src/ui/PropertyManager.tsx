@@ -22,7 +22,7 @@ const TOOL_INFO: Record<SketchTool, { name: string; hint: string }> = {
   extend: { name: "Extend (kéo dài)", hint: "Click gần đầu của một đường để kéo dài đến khi gặp đối tượng khác." },
   fillet: { name: "Sketch Fillet (bo góc)", hint: "Click vào điểm góc chung của 2 đường để bo cung tiếp tuyến." },
   sketchChamfer: { name: "Sketch Chamfer (vát góc)", hint: "Click vào điểm góc chung của 2 đường để vát thẳng theo khoảng đặt bên dưới." },
-  dimension: { name: "Smart Dimension", hint: "Click một cạnh để gán chiều dài, đường tròn để gán bán kính, hoặc 2 điểm để gán khoảng cách." },
+  dimension: { name: "Smart Dimension", hint: "1 cạnh = chiều dài · 2 cạnh = GÓC giữa chúng · đường tròn = bán kính · 2 điểm = khoảng cách. (Click cạnh 1 rồi cạnh 2 để ghi góc; click cạnh rồi ra chỗ trống để ghi chiều dài.)" },
 };
 
 /** SolidWorks-style PropertyManager: active tool options + relations + status. */

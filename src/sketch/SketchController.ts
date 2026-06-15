@@ -51,6 +51,8 @@ export class SketchController {
   /** Accumulated point ids for multi-click tools (arcs, slot). */
   private chain: string[] = [];
   private dimFirstPoint: string | null = null;
+  /** First line picked by the Dimension tool (pending length-vs-angle decision). */
+  private dimFirstLine: string | null = null;
   private cursor: Point2 | null = null;
   private activeInfer: Inference | null = null;
 
@@ -207,6 +209,7 @@ export class SketchController {
     this.pendingPointId = null;
     this.chain = [];
     this.dimFirstPoint = null;
+    this.dimFirstLine = null;
   }
 
   private onContextMenu = (e: MouseEvent) => {
@@ -624,12 +627,31 @@ export class SketchController {
 
   private handleDimension(raw: Point2) {
     const hit = this.pick(raw);
-    if (!hit) return;
     const store = useViewportStore.getState();
+
+    // Smart Dimension (SolidWorks-style):
+    //  • 1 line  → length        • 2 lines → angle between them
+    //  • circle  → radius        • 2 points → distance
+    // A line click is held pending: the next pick decides length vs angle.
+    if (this.dimFirstLine) {
+      if (hit && hit.kind === "line" && hit.id !== this.dimFirstLine) {
+        store.addAngleDim(this.dimFirstLine, hit.id); // two lines → angle
+      } else {
+        const line = this.sketch!.lines.find((l) => l.id === this.dimFirstLine);
+        if (line) store.addDistanceDim(line.p1, line.p2); // same line / empty → length
+      }
+      this.dimFirstLine = null;
+      store.setSelection([]);
+      return;
+    }
+
+    if (!hit) return;
     if (hit.kind === "circle") return store.addRadiusDim(hit.id);
     if (hit.kind === "line") {
-      const line = this.sketch!.lines.find((l) => l.id === hit.id)!;
-      return store.addDistanceDim(line.p1, line.p2);
+      // Hold the first line; the next click commits a length or an angle.
+      this.dimFirstLine = hit.id;
+      store.setSelection([hit]);
+      return;
     }
     if (!this.dimFirstPoint) {
       this.dimFirstPoint = hit.id;
