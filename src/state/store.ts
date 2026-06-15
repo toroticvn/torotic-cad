@@ -46,6 +46,7 @@ export type SketchTool =
   | "ellipse"
   | "spline"
   | "slot"
+  | "arcSlot"
   | "trim"
   | "extend"
   | "split"

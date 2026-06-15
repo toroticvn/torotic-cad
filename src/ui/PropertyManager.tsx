@@ -18,6 +18,7 @@ const TOOL_INFO: Record<SketchTool, { name: string; hint: string }> = {
   ellipse: { name: "Ellipse", hint: "Click tâm → click đầu trục lớn (định bán trục lớn + góc) → click định bán trục nhỏ." },
   spline: { name: "Spline", hint: "Click lần lượt các điểm đi qua. Chuột phải hoặc Enter để kết thúc đường cong." },
   slot: { name: "Slot (rãnh)", hint: "Click tâm đầu 1 → tâm đầu 2 → di chuột định bề rộng rồi click." },
+  arcSlot: { name: "Slot cung (rãnh cong)", hint: "Click tâm cung → điểm đầu (định bán kính) → điểm cuối → click định bề rộng." },
   trim: { name: "Trim (cắt)", hint: "Click vào đối tượng (đường/cung/tròn) để xoá nó." },
   extend: { name: "Extend (kéo dài)", hint: "Click gần đầu của một đường để kéo dài đến khi gặp đối tượng khác." },
   split: { name: "Split (chia)", hint: "Click vào một đường hoặc cung để chia nó thành 2 đoạn tại điểm đó." },

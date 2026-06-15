@@ -5,6 +5,7 @@ import { SketchPlane, type Point2 } from "./SketchPlane";
 import { planeForSketch, type ParametricSketch, type SketchPoint } from "./model";
 import { sampleArc, circumcenter, isCcwThrough, distToArc } from "./arc";
 import { ellipsePoints, splinePoints } from "./curves";
+import { buildArcSlot } from "./arcSlot";
 
 const SNAP = 5;
 const PICK_TOL = 6;
@@ -307,7 +308,37 @@ export class SketchController {
         return this.pushChainPoint(p); // accumulate control points; right-click/Enter to finish
       case "slot":
         return this.drawSlot(p);
+      case "arcSlot":
+        return this.drawArcSlot(p);
     }
+  }
+
+  // Centerpoint arc slot: arc centre → start → end (defines centreline arc) →
+  // 4th click sets the width.
+  private drawArcSlot(p: Point2) {
+    if (this.chain.length < 3) return this.pushChainPoint(p);
+    const cons = this.construction;
+    useViewportStore.getState().applyChange((s) => {
+      const C = this.chainPt(s, 0);
+      const Sp = this.chainPt(s, 1);
+      const Ep = this.chainPt(s, 2);
+      const R = Math.hypot(Sp.x - C.x, Sp.y - C.y);
+      if (R < 1e-6) return;
+      const a1 = Math.atan2(Sp.y - C.y, Sp.x - C.x);
+      const a2 = Math.atan2(Ep.y - C.y, Ep.x - C.x);
+      const width = 2 * Math.abs(Math.hypot(p.x - C.x, p.y - C.y) - R);
+      if (width < 1e-3) return;
+      const cx = C.x, cy = C.y;
+      // Drop the transient center/start/end markers (the builder makes its own
+      // points); keep any that turned out to be shared with real geometry.
+      if (!buildArcSlot(s, cx, cy, R, a1, a2, width, cons)) return;
+      const remove = new Set(this.chain.slice(0, 3));
+      const ref = new Set<string>();
+      for (const l of s.lines) { ref.add(l.p1); ref.add(l.p2); }
+      for (const a of s.arcs) { ref.add(a.center); ref.add(a.start); ref.add(a.end); }
+      s.points = s.points.filter((q) => !(remove.has(q.id) && !ref.has(q.id)));
+    });
+    this.chain = [];
   }
 
   // Ellipse: center → major-axis end (rx + rotation) → minor-axis point (ry).

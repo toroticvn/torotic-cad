@@ -104,6 +104,7 @@ export function SketchRibbon() {
           ]}
         />
         <Btn def={{ tool: "slot", label: "Slot", icon: "▭" }} active={tool === "slot"} onClick={setTool} />
+        <Btn def={{ tool: "arcSlot", label: "Slot cung", icon: "◠" }} active={tool === "arcSlot"} onClick={setTool} />
       </Group>
 
       <Sep />
