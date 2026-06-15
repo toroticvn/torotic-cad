@@ -24,6 +24,8 @@ Backend = **Cloudflare Pages Functions** (`functions/api/*.ts`), gọi Claude `c
 - **📋 Claude.ai** — đường thủ công, miễn phí bằng gói Pro/Max (tải ảnh + copy prompt + mở claude.ai).
 
 > Pipeline "AI vẽ" được kiểm bằng `src/ai/aiDesign.runtime.test.ts` (design → feature → khối thật, cả replace lẫn append + khoan lỗ + boss + fillet).
+>
+> **Sketch AI có ràng buộc để sửa/đo được:** chữ nhật AI có quan hệ ngang/dọc + neo 1 góc (fixed); đường tròn AI neo tâm. Nhờ vậy khi vào Sửa sketch + ghi kích thước (width/height/Ø), hình giữ đúng dạng (parametric) thay vì bị méo/trôi do thiếu ràng buộc.
 
 ### ⚠️ Điều quan trọng về AI (đã trả giá để học)
 - **Claude API ≠ gói Claude Pro/Max** — tính tiền riêng. Phải nạp credit API ở console.anthropic.com (đã nạp $5).

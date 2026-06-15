@@ -1,6 +1,6 @@
 import type { Feature, BoolOp, ExtrudeFeature, SketchFeature } from "../features";
 import type { PlaneId } from "../sketch/SketchPlane";
-import { emptySketch, type ParametricSketch } from "../sketch/model";
+import { emptySketch, type ParametricSketch, type SketchPoint } from "../sketch/model";
 import { isCcwThrough } from "../sketch/arc";
 
 /**
@@ -92,15 +92,28 @@ function rectSketch(plane: PlaneId, offset: number, cx: number, cy: number, w: n
     [cx + hw, cy + hd],
     [cx - hw, cy + hd],
   ];
-  const pts = corners.map(([x, y]) => ({ id: id("pt"), x, y }));
+  const pts: SketchPoint[] = corners.map(([x, y]) => ({ id: id("pt"), x, y }));
+  // Anchor the first corner so the rectangle doesn't drift when dimensioned.
+  pts[0].fixed = true;
   s.points = pts;
-  for (let i = 0; i < 4; i++) s.lines.push({ id: id("ln"), p1: pts[i].id, p2: pts[(i + 1) % 4].id });
+  const lines = corners.map((_, i) => ({ id: id("ln"), p1: pts[i].id, p2: pts[(i + 1) % 4].id }));
+  s.lines = lines;
+  // Make it behave like a hand-drawn, fully-relational rectangle: horizontal
+  // top/bottom, vertical sides → stays rectangular while editing/dimensioning.
+  s.constraints.push(
+    { id: id("c"), type: "horizontal", line: lines[0].id },
+    { id: id("c"), type: "horizontal", line: lines[2].id },
+    { id: id("c"), type: "vertical", line: lines[1].id },
+    { id: id("c"), type: "vertical", line: lines[3].id },
+  );
   return s;
 }
 
 function circleSketch(plane: PlaneId, offset: number, cx: number, cy: number, r: number): ParametricSketch {
   const s = emptySketch(plane, offset);
-  const c = { id: id("pt"), x: cx, y: cy };
+  // Anchor the centre so the circle stays put; the radius remains free to
+  // dimension (Smart Dimension → Ø).
+  const c = { id: id("pt"), x: cx, y: cy, fixed: true };
   s.points = [c];
   s.circles = [{ id: id("ci"), center: c.id, r: Math.abs(r) || 5 }];
   return s;
