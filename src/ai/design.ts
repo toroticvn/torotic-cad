@@ -46,6 +46,14 @@ export interface DesignOp {
   boltCircleDiameter?: number;
   holeDiameter?: number;
   startAngle?: number;
+  /** hole wizard: plain / counterbore (lỗ bậc) / countersink (lỗ chìm). */
+  holeType?: "simple" | "counterbore" | "countersink";
+  /** Height of the top face the hole enters (for the recess/cone placement). */
+  topOffset?: number;
+  cboreDiameter?: number;
+  cboreDepth?: number;
+  csinkDiameter?: number;
+  csinkAngle?: number;
   /** mirror: standard plane to mirror the whole solid about; merge=fuse (default). */
   mirrorPlane?: "XY" | "XZ" | "YZ";
   merge?: boolean;
@@ -271,11 +279,32 @@ export function designToFeatures(design: Design, opts?: { continueSolid?: boolea
       features.push(extrude(`Cyl${n}`, sf.id, num(o.h, 20), hasSolid ? (o.op ?? "add") : "new"));
       hasSolid = true;
     } else if (o.shape === "hole") {
-      const sf = sketchFeature(`Sketch${n}`, circleSketch(plane, offset, x, y, num(o.diameter, 8) / 2));
+      const dia = num(o.diameter, 8);
+      const op: BoolOp = hasSolid ? "cut" : "new";
+      // Main through hole (cut up into the solid; robust regardless of exact top).
+      const sf = sketchFeature(`Sketch${n}`, circleSketch(plane, offset, x, y, dia / 2));
       features.push(sf);
-      // A hole cuts; if there's no solid yet, fall back to creating one.
-      features.push(extrude(`Hole${n}`, sf.id, num(o.depth, 30), hasSolid ? "cut" : "new"));
+      features.push(extrude(`Hole${n}`, sf.id, num(o.depth, 30), op));
       hasSolid = true;
+
+      const ht = o.holeType ?? "simple";
+      const top = num(o.topOffset, num(o.h, 20)); // top face height (recess anchor)
+      if (ht === "counterbore") {
+        // A wider, shallow recess cut downward from the top face.
+        const D = num(o.cboreDiameter, dia * 1.8);
+        const cb = sketchFeature(`Sketch${n}cb`, circleSketch(plane, top, x, y, D / 2));
+        features.push(cb);
+        features.push({ ...extrude(`Cbore${n}`, cb.id, num(o.cboreDepth, 5), "cut"), flip: true });
+      } else if (ht === "countersink") {
+        // A conical recess: loft-cut from Ø_csink at the top down to Ø_hole.
+        const D = num(o.csinkDiameter, dia * 2);
+        const ang = num(o.csinkAngle, 90);
+        const coneDepth = ((D - dia) / 2) / Math.tan(((ang / 2) * Math.PI) / 180) || 3;
+        const topC = sketchFeature(`Sketch${n}csA`, circleSketch(plane, top, x, y, D / 2));
+        const botC = sketchFeature(`Sketch${n}csB`, circleSketch(plane, top - coneDepth, x, y, dia / 2));
+        features.push(topC, botC);
+        features.push({ id: id("loft"), type: "loft", name: `Csink${n}`, sketchIds: [topC.id, botC.id], operation: "cut" });
+      }
     }
   }
 

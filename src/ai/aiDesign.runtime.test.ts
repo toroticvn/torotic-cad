@@ -109,6 +109,20 @@ async function main() {
   check("flange with bolt circle builds one body", flange.length === 1 && flange[0].indices.length > 0, `bodies=${flange.length}`);
   check("bolt holes changed geometry", (flange[0]?.positions.length ?? 0) !== (rebuildSolids(disk)[0]?.positions.length ?? 0));
 
+  console.log("Runtime: counterbore + countersink holes in a plate:");
+  const plateH = 20;
+  const plateBase = designToFeatures({ operations: [{ shape: "box", w: 80, d: 40, h: plateH }] });
+  const plainHole = rebuildSolids([...plateBase, ...designToFeatures({ mode: "append", operations: [{ shape: "hole", x: -20, y: 0, diameter: 8, depth: 40 }] }, { continueSolid: true })]);
+  const plainVerts = plainHole[0]?.positions.length ?? 0;
+
+  const cbore = rebuildSolids([...plateBase, ...designToFeatures({ mode: "append", operations: [{ shape: "hole", x: -20, y: 0, diameter: 8, depth: 40, holeType: "counterbore", cboreDiameter: 16, cboreDepth: 6, topOffset: plateH }] }, { continueSolid: true })]);
+  check("counterbore builds one body", cbore.length === 1 && cbore[0].indices.length > 0, `bodies=${cbore.length}`);
+  check("counterbore differs from a plain hole", (cbore[0]?.positions.length ?? 0) !== plainVerts, `plain=${plainVerts} cbore=${cbore[0]?.positions.length}`);
+
+  const csink = rebuildSolids([...plateBase, ...designToFeatures({ mode: "append", operations: [{ shape: "hole", x: 20, y: 0, diameter: 8, depth: 40, holeType: "countersink", csinkDiameter: 16, csinkAngle: 90, topOffset: plateH }] }, { continueSolid: true })]);
+  check("countersink builds one body", csink.length === 1 && csink[0].indices.length > 0, `bodies=${csink.length}`);
+  check("countersink differs from a plain hole", (csink[0]?.positions.length ?? 0) !== plainVerts, `plain=${plainVerts} csink=${csink[0]?.positions.length}`);
+
   console.log("Pure: delete-target matching (by name) filters the tree:");
   const tree = designToFeatures({ operations: [{ shape: "box", w: 40, d: 40, h: 10 }] });
   const holeF = designToFeatures({ mode: "append", operations: [{ shape: "hole", diameter: 8, depth: 20 }] }, { continueSolid: true });

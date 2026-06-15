@@ -50,6 +50,7 @@ Khi gọi apply_design:
 - Đa giác đều (đai ốc, đầu bu-lông lục giác, bát giác): shape "regularPolygon" (sides, diameter = đường kính qua đỉnh, x, y, h, angle).
 - Rãnh / lỗ ô-van: shape "slot" (length = khoảng 2 tâm, width = bề rộng, x, y, angle; cắt thì op="cut" + depth, làm lồi thì op khác + h).
 - Mặt bích nhiều lỗ (vòng lỗ bu-lông): vẽ đĩa bằng "cylinder" trước, rồi shape "boltCircle" (boltCircleDiameter = PCD, holeDiameter, count, depth) để khoét cả vòng lỗ một lần.
+- Lỗ bậc / lỗ chìm (chỗ bắt bu-lông): shape "hole" với holeType="counterbore" (kèm cboreDiameter, cboreDepth) hoặc "countersink" (kèm csinkDiameter, csinkAngle). LUÔN đặt topOffset = chiều cao mặt trên của khối để phần khoét nằm đúng mặt trên.
 - Gân tăng cứng (rib): dùng "polygon" tạo tiết diện tam giác/chữ nhật mỏng rồi đùn (op="add"). Ren: tạm coi như lỗ/trụ trơn (chưa dựng ren xoắn).
 - Soi gương cả khối: shape "mirror", "mirrorPlane" ∈ {XY,XZ,YZ}, "merge" (true=gộp 1 khối, false=2 khối).
 - Lặp khối: "patternLinear" (count, dx,dy,dz) hoặc "patternCircular" (count, totalAngle, axis ∈ {x,y,z}).
@@ -102,6 +103,12 @@ const APPLY_DESIGN_TOOL = {
             boltCircleDiameter: { type: "number", description: "boltCircle: đường kính vòng chia lỗ PCD (mm)" },
             holeDiameter: { type: "number", description: "boltCircle: đường kính mỗi lỗ (mm)" },
             startAngle: { type: "number", description: "boltCircle: góc bắt đầu (độ)" },
+            holeType: { type: "string", enum: ["simple", "counterbore", "countersink"], description: "hole: loại lỗ (trơn / lỗ bậc / lỗ chìm)" },
+            topOffset: { type: "number", description: "hole bậc/chìm: chiều cao mặt trên nơi lỗ đi vào (mm)" },
+            cboreDiameter: { type: "number", description: "counterbore: đường kính phần khoét rộng (mm)" },
+            cboreDepth: { type: "number", description: "counterbore: chiều sâu phần khoét rộng (mm)" },
+            csinkDiameter: { type: "number", description: "countersink: đường kính miệng loe (mm)" },
+            csinkAngle: { type: "number", description: "countersink: góc côn (độ, vd 90)" },
             mirrorPlane: { type: "string", enum: ["XY", "XZ", "YZ"], description: "mirror: mặt phẳng soi gương" },
             merge: { type: "boolean", description: "mirror: gộp thành 1 khối (mặc định true)" },
             count: { type: "number", description: "pattern: tổng số bản (gồm bản gốc)" },
