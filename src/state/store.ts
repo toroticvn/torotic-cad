@@ -258,6 +258,7 @@ interface AppState {
   addConstraint: (c: GeomConstraintInput) => void;
   addDistanceDim: (p1: string, p2: string) => void;
   addRadiusDim: (circleId: string) => void;
+  addDiameterDim: (circleId: string) => void;
   addAngleDim: (line1: string, line2: string) => void;
   updateDimension: (id: string, patch: { value?: number; formula?: string }) => void;
   deleteDimension: (id: string) => void;
@@ -1117,6 +1118,19 @@ export const useViewportStore = create<AppState>((set, get) => ({
         kind: "radius",
         refs: [circleId],
         value: Math.round(c.r * 100) / 100,
+      });
+    }),
+
+  addDiameterDim: (circleId) =>
+    get().applyChange((s) => {
+      const c = s.circles.find((q) => q.id === circleId)!;
+      const name = `d${s.dimensions.length + 1}`;
+      s.dimensions.push({
+        id: uid("dim"),
+        name,
+        kind: "diameter",
+        refs: [circleId],
+        value: Math.round(c.r * 2 * 100) / 100,
       });
     }),
 

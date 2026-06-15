@@ -692,7 +692,7 @@ export class SketchController {
     }
 
     if (!hit) return;
-    if (hit.kind === "circle") return store.addRadiusDim(hit.id);
+    if (hit.kind === "circle") return store.addDiameterDim(hit.id); // SolidWorks default for circles
     if (hit.kind === "line") {
       // Hold the first line; the next click commits a length or an angle.
       this.dimFirstLine = hit.id;
@@ -1179,6 +1179,13 @@ export class SketchController {
         const ctr = pt(c.center);
         objs.push(this.line3(ctr, { x: ctr.x + c.r, y: ctr.y }, C_DIM));
         objs.push(this.label3({ x: ctr.x + c.r / 2, y: ctr.y }, `R${round(d.value)}`));
+      }
+    } else if (d.kind === "diameter" && d.refs.length === 1) {
+      const c = this.sketch!.circles.find((q) => q.id === d.refs[0]);
+      if (c) {
+        const ctr = pt(c.center);
+        objs.push(this.line3({ x: ctr.x - c.r, y: ctr.y }, { x: ctr.x + c.r, y: ctr.y }, C_DIM));
+        objs.push(this.label3({ x: ctr.x, y: ctr.y }, `Ø${round(d.value)}`));
       }
     } else if (d.kind === "angle" && d.refs.length === 2) {
       const l1 = this.sketch!.lines.find((q) => q.id === d.refs[0]);

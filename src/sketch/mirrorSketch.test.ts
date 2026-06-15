@@ -71,5 +71,16 @@ console.log("Sketch Mirror — equalRadius: mirror circle follows the original's
   check("mirror radius equalized to 15", near(M.r, 15, 0.05), `M.r=${M.r.toFixed(3)}`);
 }
 
+console.log("Diameter dimension drives radius = value/2:");
+{
+  const s = emptySketch("front");
+  s.points.push({ id: "c", x: 0, y: 0 });
+  s.circles.push({ id: "C", center: "c", r: 3 });
+  s.dimensions.push({ id: "d1", name: "dia1", kind: "diameter", refs: ["C"], value: 20 });
+  solveSketch(s);
+  const C = s.circles.find((c) => c.id === "C")!;
+  check("Ø20 → radius 10", near(C.r, 10, 0.05), `r=${C.r.toFixed(3)}`);
+}
+
 console.log(failures === 0 ? "\nALL PASS" : `\n${failures} FAILED`);
 process.exit(failures === 0 ? 0 : 1);

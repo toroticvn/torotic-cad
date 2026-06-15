@@ -86,6 +86,9 @@ export function solveSketch(sketch: ParametricSketch, lockedPointId?: string): S
     } else if (d.kind === "radius" && d.refs.length === 1) {
       const r = cr.get(d.refs[0]);
       if (r !== undefined) constraints.push({ vars: [r], residuals: (g) => [g(r) - target] });
+    } else if (d.kind === "diameter" && d.refs.length === 1) {
+      const r = cr.get(d.refs[0]);
+      if (r !== undefined) constraints.push({ vars: [r], residuals: (g) => [g(r) - target / 2] });
     } else if (d.kind === "angle" && d.refs.length === 2) {
       const a = lineXY(d.refs[0]);
       const b = lineXY(d.refs[1]);
