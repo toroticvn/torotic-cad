@@ -6,6 +6,7 @@ import { planeForSketch, type ParametricSketch, type SketchPoint } from "./model
 import { sampleArc, circumcenter, isCcwThrough, distToArc } from "./arc";
 import { ellipsePoints, splinePoints } from "./curves";
 import { buildArcSlot } from "./arcSlot";
+import { cloneEntities, reflectAcross, relId } from "./transform";
 
 const SNAP = 5;
 const PICK_TOL = 6;
@@ -215,9 +216,45 @@ export class SketchController {
 
     const { p, infer, onLine } = this.computeSnap(raw);
     this.snapLine = onLine ?? null; // consumed by drawLine, then cleared
+    const before = this.entityIdSet();
     this.handleDraw(p, infer);
     this.snapLine = null;
+    this.applyDynamicMirror(before);
   };
+
+  /** Ids of all geometry entities (for diffing what a draw click just added). */
+  private entityIdSet(): Set<string> {
+    const s = this.sketch;
+    const ids = new Set<string>();
+    if (!s) return ids;
+    for (const l of s.lines) ids.add(l.id);
+    for (const c of s.circles) ids.add(c.id);
+    for (const a of s.arcs) ids.add(a.id);
+    return ids;
+  }
+
+  /** Dynamic Mirror: reflect entities added by the last draw click across the axis. */
+  private applyDynamicMirror(before: Set<string>) {
+    const store = useViewportStore.getState();
+    if (!store.dynamicMirror || !store.mirrorAxisId) return;
+    const axisId = store.mirrorAxisId;
+    store.applyChange((s) => {
+      const axis = s.lines.find((l) => l.id === axisId);
+      if (!axis) return;
+      const a = s.points.find((q) => q.id === axis.p1)!;
+      const b = s.points.find((q) => q.id === axis.p2)!;
+      const refs: SelRef[] = [];
+      for (const l of s.lines) if (l.id !== axisId && !before.has(l.id)) refs.push({ kind: "line", id: l.id });
+      for (const c of s.circles) if (!before.has(c.id)) refs.push({ kind: "circle", id: c.id });
+      for (const ar of s.arcs) if (!before.has(ar.id)) refs.push({ kind: "arc", id: ar.id });
+      if (refs.length === 0) return;
+      const res = cloneEntities(s, refs, (pt) => reflectAcross(pt, a, b), true);
+      for (const [src, dst] of res.points) {
+        if (src !== dst) s.constraints.push({ id: relId("sym"), type: "symmetric", p1: src, p2: dst, line: axisId });
+      }
+      for (const { src, id } of res.circles) s.constraints.push({ id: relId("eqr"), type: "equalRadius", c1: src, c2: id });
+    });
+  }
 
   private onPointerMove = (e: PointerEvent) => {
     if (!this.plane) return;

@@ -251,6 +251,12 @@ interface AppState {
   toggleConstructionSelection: () => void;
   /** Mirror selected entities across a selected line (last selected line = axis). */
   mirrorSelection: () => void;
+  /** Dynamic Mirror: mirror entities live as they are drawn, across an axis. */
+  dynamicMirror: boolean;
+  /** The axis line for Dynamic Mirror (a selected line, usually a centerline). */
+  mirrorAxisId: string | null;
+  /** Turn Dynamic Mirror on (needs a selected line) / off. */
+  toggleDynamicMirror: () => void;
   /** Duplicate selected entities in a linear array (uses pattern params). */
   linearPattern: () => void;
   /** Duplicate selected entities around a center (selected point, else origin). */
@@ -824,7 +830,7 @@ export const useViewportStore = create<AppState>((set, get) => ({
       set((s) => ({
         features: s.features.map((f) => (f.id === editingSketchId ? { ...f, sketch } : f)),
       }));
-      set({ mode: "model", sketchPlaneId: null, sketch: null, editingSketchId: null, selection: [] });
+      set({ mode: "model", sketchPlaneId: null, sketch: null, editingSketchId: null, selection: [], dynamicMirror: false, mirrorAxisId: null });
       void rebuild(get, set);
       return;
     }
@@ -835,12 +841,12 @@ export const useViewportStore = create<AppState>((set, get) => ({
       const feature: Feature = { id: uid("sketch"), type: "sketch", name: `Sketch${n}`, sketch };
       set((s) => ({ features: [...s.features, feature], selectedFeatureId: feature.id }));
     }
-    set({ mode: "model", sketchPlaneId: null, sketch: null, selection: [] });
+    set({ mode: "model", sketchPlaneId: null, sketch: null, selection: [], dynamicMirror: false, mirrorAxisId: null });
     updateOverlays(get);
   },
 
   cancelSketch: () => {
-    set({ mode: "model", sketchPlaneId: null, sketch: null, editingSketchId: null, selection: [] });
+    set({ mode: "model", sketchPlaneId: null, sketch: null, editingSketchId: null, selection: [], dynamicMirror: false, mirrorAxisId: null });
     updateOverlays(get);
   },
 
@@ -1050,6 +1056,21 @@ export const useViewportStore = create<AppState>((set, get) => ({
       }
     });
     get().setSelection([]);
+  },
+
+  dynamicMirror: false,
+  mirrorAxisId: null,
+  toggleDynamicMirror: () => {
+    if (get().dynamicMirror) {
+      set({ dynamicMirror: false, mirrorAxisId: null });
+      return;
+    }
+    const lineRef = [...get().selection].reverse().find((r) => r.kind === "line");
+    if (!lineRef) {
+      set({ featureError: "Dynamic Mirror: chọn 1 đường (nên là Đường tâm) làm trục rồi bật." });
+      return;
+    }
+    set({ dynamicMirror: true, mirrorAxisId: lineRef.id, selection: [] });
   },
 
   linearPattern: () => {

@@ -26,6 +26,8 @@ export function SketchRibbon() {
   const linear = useViewportStore((s) => s.linearPattern);
   const circular = useViewportStore((s) => s.circularPattern);
   const offset = useViewportStore((s) => s.offsetSelection);
+  const dynamicMirror = useViewportStore((s) => s.dynamicMirror);
+  const toggleDynamicMirror = useViewportStore((s) => s.toggleDynamicMirror);
 
   if (mode !== "sketch" || !hasSketch) return null;
 
@@ -139,6 +141,14 @@ export function SketchRibbon() {
         <button className="ribbon-btn" disabled={nEntities < 1} onClick={() => run(() => offset(true))} title="Offset ra ngoài (khoảng cách + chiều vào/ra tinh chỉnh ở panel trái)">
           <span className="ic">⟶</span>
           Offset
+        </button>
+        <button
+          className={"ribbon-btn" + (dynamicMirror ? " active" : "")}
+          onClick={toggleDynamicMirror}
+          title="Dynamic Mirror: chọn 1 đường tâm rồi bật — vẽ tới đâu tự đối xứng tới đó. Bấm lại để tắt."
+        >
+          <span className="ic">⧓</span>
+          {dynamicMirror ? "Mirror ✓" : "Dyn.Mirror"}
         </button>
       </Group>
 
