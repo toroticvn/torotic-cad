@@ -25,11 +25,13 @@ const C_PLANE = 0x2f6fea;
 
 const snap = (n: number) => Math.round(n / SNAP) * SNAP;
 
-type Inference = "horizontal" | "vertical" | "coincident";
+type Inference = "horizontal" | "vertical" | "coincident" | "onLine";
 
 interface SnapResult {
   p: Point2;
   infer: Inference | null;
+  /** When snapped onto an existing edge: that edge's id (→ auto pointOnLine). */
+  onLine?: string;
 }
 
 /**
@@ -53,6 +55,8 @@ export class SketchController {
   private dimFirstPoint: string | null = null;
   /** First line picked by the Dimension tool (pending length-vs-angle decision). */
   private dimFirstLine: string | null = null;
+  /** Edge the most recent click snapped onto (line tool → auto pointOnLine). */
+  private snapLine: string | null = null;
   private cursor: Point2 | null = null;
   private activeInfer: Inference | null = null;
 
@@ -165,6 +169,33 @@ export class SketchController {
       }
     }
 
+    // 3. On-edge: snap onto an existing line so the new point sticks to it
+    //    (auto pointOnLine). Line tool only; corners are handled by step 1.
+    if (s && (this.tool === "line" || this.tool === "centerline")) {
+      let bd = PICK_TOL;
+      let bestLine: string | null = null;
+      let bestPt: Point2 | null = null;
+      for (const l of s.lines) {
+        if (l.id === this.pendingPointId) continue;
+        const a = s.points.find((q) => q.id === l.p1);
+        const b = s.points.find((q) => q.id === l.p2);
+        if (!a || !b) continue;
+        const dx = b.x - a.x, dy = b.y - a.y;
+        const len2 = dx * dx + dy * dy;
+        if (len2 < 1e-9) continue;
+        const t = ((raw.x - a.x) * dx + (raw.y - a.y) * dy) / len2;
+        if (t < 0.02 || t > 0.98) continue; // near a corner → leave to point-snap
+        const projx = a.x + t * dx, projy = a.y + t * dy;
+        const d = Math.hypot(raw.x - projx, raw.y - projy);
+        if (d <= bd) {
+          bd = d;
+          bestLine = l.id;
+          bestPt = { x: projx, y: projy };
+        }
+      }
+      if (bestLine && bestPt) return { p: bestPt, infer: "onLine", onLine: bestLine };
+    }
+
     return { p: { x: snap(raw.x), y: snap(raw.y) }, infer: null };
   }
 
@@ -180,8 +211,10 @@ export class SketchController {
     if (this.tool === "fillet") return this.handleFillet(raw);
     if (this.tool === "sketchChamfer") return this.handleChamfer(raw);
 
-    const { p, infer } = this.computeSnap(raw);
+    const { p, infer, onLine } = this.computeSnap(raw);
+    this.snapLine = onLine ?? null; // consumed by drawLine, then cleared
     this.handleDraw(p, infer);
+    this.snapLine = null;
   };
 
   private onPointerMove = (e: PointerEvent) => {
@@ -210,6 +243,7 @@ export class SketchController {
     this.chain = [];
     this.dimFirstPoint = null;
     this.dimFirstLine = null;
+    this.snapLine = null;
   }
 
   private onContextMenu = (e: MouseEvent) => {
@@ -472,9 +506,11 @@ export class SketchController {
   private drawLine(p: Point2, infer: Inference | null) {
     const store = useViewportStore.getState();
     const cons = this.construction || this.tool === "centerline";
+    const snapLine = this.snapLine;
     if (!this.pendingPointId) {
       store.applyChange((s) => {
         this.pendingPointId = this.getOrCreatePoint(s, p);
+        this.addOnLine(s, this.pendingPointId, snapLine);
       });
       return;
     }
@@ -489,8 +525,18 @@ export class SketchController {
       s.lines.push({ id: lineId, p1: fromId, p2: nextId, construction: cons || undefined });
       if (infer === "horizontal") s.constraints.push({ id: uid("con"), type: "horizontal", line: lineId });
       if (infer === "vertical") s.constraints.push({ id: uid("con"), type: "vertical", line: lineId });
+      this.addOnLine(s, nextId, snapLine);
     });
     if (nextId) this.pendingPointId = nextId;
+  }
+
+  /** Auto-add a pointOnLine relation when an endpoint was snapped onto an edge. */
+  private addOnLine(s: ParametricSketch, pointId: string, lineId: string | null) {
+    if (!lineId) return;
+    const line = s.lines.find((l) => l.id === lineId);
+    if (!line || line.p1 === pointId || line.p2 === pointId) return; // not a corner of it
+    if (s.constraints.some((c) => c.type === "pointOnLine" && c.point === pointId && c.line === lineId)) return;
+    s.constraints.push({ id: uid("con"), type: "pointOnLine", point: pointId, line: lineId });
   }
 
   private drawRect(p: Point2, fromCenter: boolean) {
@@ -1055,7 +1101,8 @@ export class SketchController {
 
   private buildInferGlyph(): THREE.Object3D | null {
     if (!this.activeInfer || !this.cursor) return null;
-    const symbol = this.activeInfer === "horizontal" ? "—" : this.activeInfer === "vertical" ? "│" : "◎";
+    const symbol =
+      this.activeInfer === "horizontal" ? "—" : this.activeInfer === "vertical" ? "│" : this.activeInfer === "onLine" ? "⊢" : "◎";
     return this.glyph3({ x: this.cursor.x + 6, y: this.cursor.y + 6 }, symbol);
   }
 
@@ -1282,6 +1329,14 @@ function pruneOrphanPoints(s: ParametricSketch) {
   for (const e of s.ellipses ?? []) used.add(e.center);
   for (const sp of s.splines ?? []) sp.points.forEach((id) => used.add(id));
   for (const d of s.dimensions) if (d.kind === "distance") d.refs.forEach((r) => used.add(r));
+  // Keep points referenced only by relations (e.g. a point constrained on an edge).
+  for (const c of s.constraints) {
+    if (c.type === "pointOnLine" || c.type === "midpoint") used.add(c.point);
+    else if (c.type === "coincident" || c.type === "symmetric") {
+      used.add(c.p1);
+      used.add(c.p2);
+    }
+  }
   s.points = s.points.filter((p) => used.has(p.id) || p.fixed);
 }
 

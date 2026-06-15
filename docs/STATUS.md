@@ -39,8 +39,10 @@ Kiến trúc thêm 1 tool: (1) `SketchTool` union trong `store.ts`; (2) nút tro
 | **Đối tượng** | Đường, Đường tâm, Điểm, Chữ nhật (góc/tâm/3 điểm), Hình bình hành, Tròn (tâm / 3 điểm), Ellipse, Spline, Đa giác, Cung (tâm/3 điểm/tiếp tuyến), Slot |
 | **Sửa** | Trim, Extend, Fillet, Chamfer, Convert entities (chiếu cạnh khối đồng phẳng) |
 | **Biến đổi** | Offset (chọn cạnh + chiều ra/vào), Mirror, Pattern thẳng, Pattern tròn, Move, Copy, Rotate, Scale — **nút Mirror/Pattern/Offset có ngay trên ribbon (nhóm "Biến đổi")**; tham số (số lượng/khoảng cách) ở panel trái |
-| **Quan hệ** | Ngang, Dọc, Song song, Vuông góc, Thẳng hàng, Bằng nhau, Trùng điểm, Trung điểm, Đối xứng, Đồng tâm, Tiếp tuyến, Cố định/Bỏ cố định, Đổi nét dựng |
-| **Kích thước** | Smart Dimension (khoảng cách, bán kính, **góc**) |
+| **Quan hệ** | Ngang, Dọc, Song song, Vuông góc, Thẳng hàng, Bằng nhau, Trùng điểm, Trung điểm, **Trên cạnh (point-on-edge)**, Đối xứng, Đồng tâm, Tiếp tuyến, Cố định/Bỏ cố định, Đổi nét dựng |
+| **Kích thước** | Smart Dimension: **1 cạnh = dài, 2 cạnh = GÓC, tròn = bán kính, 2 điểm = khoảng cách** (thước tự nhận, giống SolidWorks) |
+
+> **Point-on-edge:** công cụ Line **tự bắt điểm vào cạnh** (snap) và thêm ràng buộc `pointOnLine` → đầu mút bám trên cạnh, trượt dọc cạnh khi đổi góc (không còn lệch ra ngoài). Cũng thêm thủ công: chọn 1 điểm + 1 cạnh → nút "Trên cạnh". Test: `src/sketch/pointOnLine.test.ts`.
 
 ### Feature 3D (khối)
 Ngoài Extrude / Revolve / Loft / Sweep / Fillet / Chamfer (đã có từ trước):

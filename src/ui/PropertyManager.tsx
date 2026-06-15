@@ -229,6 +229,7 @@ function Relations() {
     },
     { label: "Trùng điểm", enabled: points.length === 2, onClick: () => apply({ type: "coincident", p1: points[0].id, p2: points[1].id }) },
     { label: "Trung điểm", enabled: points.length === 1 && lines.length === 1, onClick: () => apply({ type: "midpoint", point: points[0].id, line: lines[0].id }) },
+    { label: "Trên cạnh", enabled: points.length === 1 && lines.length === 1, onClick: () => apply({ type: "pointOnLine", point: points[0].id, line: lines[0].id }) },
     { label: "Đối xứng", enabled: points.length === 2 && lines.length === 1, onClick: () => apply({ type: "symmetric", p1: points[0].id, p2: points[1].id, line: lines[0].id }) },
     { label: "Đồng tâm", enabled: ents.length === 2 && curves.length === 2, onClick: () => apply({ type: "concentric", e1: ref(curves[0]), e2: ref(curves[1]) }) },
     { label: "Tiếp tuyến", enabled: ents.length === 2 && curves.length >= 1 && lines.length <= 1, onClick: () => apply({ type: "tangent", e1: ref(ents[0]), e2: ref(ents[1]) }) },

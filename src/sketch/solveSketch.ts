@@ -214,6 +214,19 @@ function buildGeomConstraint(
         residuals: (g) => [g(pxi) - (g(l.x1) + g(l.x2)) / 2, g(pyi) - (g(l.y1) + g(l.y2)) / 2],
       };
     }
+    case "pointOnLine": {
+      // The point must lie on the infinite line through the edge (it can slide
+      // along it). Residual = cross product of edge dir and (point − p1) = 0.
+      const l = lineXY(c.line);
+      const pxi = px.get(c.point)!, pyi = py.get(c.point)!;
+      return {
+        vars: [pxi, pyi, l.x1, l.y1, l.x2, l.y2],
+        residuals: (g) => {
+          const ex = g(l.x2) - g(l.x1), ey = g(l.y2) - g(l.y1);
+          return [ex * (g(pyi) - g(l.y1)) - ey * (g(pxi) - g(l.x1))];
+        },
+      };
+    }
     case "symmetric": {
       const l = lineXY(c.line);
       const p1x = px.get(c.p1)!, p1y = py.get(c.p1)!, p2x = px.get(c.p2)!, p2y = py.get(c.p2)!;
