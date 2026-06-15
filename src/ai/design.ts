@@ -1,6 +1,7 @@
 import type { Feature, BoolOp, ExtrudeFeature, SketchFeature } from "../features";
 import type { PlaneId } from "../sketch/SketchPlane";
 import { emptySketch, type ParametricSketch } from "../sketch/model";
+import { isCcwThrough } from "../sketch/arc";
 
 /**
  * High-level "AI design" emitted by Claude tool use (/api/chat apply_design and
@@ -15,6 +16,9 @@ export interface DesignOp {
     | "fillet"
     | "chamfer"
     | "polygon"
+    | "regularPolygon"
+    | "slot"
+    | "boltCircle"
     | "mirror"
     | "patternLinear"
     | "patternCircular";
@@ -31,6 +35,17 @@ export interface DesignOp {
   radius?: number;
   /** polygon: ordered [x,y] vertices of a closed profile (≥3). */
   points?: [number, number][];
+  /** slot: length between the two end centers + width (overall = length+width). */
+  length?: number;
+  width?: number;
+  /** angle of the slot axis / regularPolygon rotation, in degrees. */
+  angle?: number;
+  /** regularPolygon: number of sides (≥3); size given by `diameter` (across corners). */
+  sides?: number;
+  /** boltCircle: bolt-circle (pitch) diameter, individual hole diameter, start angle. */
+  boltCircleDiameter?: number;
+  holeDiameter?: number;
+  startAngle?: number;
   /** mirror: standard plane to mirror the whole solid about; merge=fuse (default). */
   mirrorPlane?: "XY" | "XZ" | "YZ";
   merge?: boolean;
@@ -94,6 +109,63 @@ function polygonSketch(plane: PlaneId, offset: number, points: [number, number][
   return s;
 }
 
+/** A regular N-gon (hex nut, octagon…) inscribed in a circle of radius R. */
+function regularPolygonSketch(plane: PlaneId, offset: number, cx: number, cy: number, sides: number, r: number, rotDeg: number): ParametricSketch | null {
+  const n = Math.max(3, Math.round(sides));
+  const R = Math.abs(r) || 10;
+  const s = emptySketch(plane, offset);
+  const rot = (rotDeg * Math.PI) / 180;
+  const pts = Array.from({ length: n }, (_, i) => {
+    const a = rot + (i * 2 * Math.PI) / n;
+    return { id: id("pt"), x: cx + R * Math.cos(a), y: cy + R * Math.sin(a) };
+  });
+  s.points = pts;
+  for (let i = 0; i < n; i++) s.lines.push({ id: id("ln"), p1: pts[i].id, p2: pts[(i + 1) % n].id });
+  return s;
+}
+
+/** A slot (obround): two end caps of radius width/2, `length` between centers. */
+function slotSketch(plane: PlaneId, offset: number, cx: number, cy: number, length: number, width: number, angleDeg: number): ParametricSketch | null {
+  const L = Math.abs(length);
+  const r = Math.abs(width) / 2;
+  if (r <= 0) return null;
+  const s = emptySketch(plane, offset);
+  const a = (angleDeg * Math.PI) / 180;
+  const ux = Math.cos(a), uy = Math.sin(a); // slot axis
+  const px = -uy, py = ux; // perpendicular
+  const c1 = { id: id("pt"), x: cx - (ux * L) / 2, y: cy - (uy * L) / 2 };
+  const c2 = { id: id("pt"), x: cx + (ux * L) / 2, y: cy + (uy * L) / 2 };
+  const mk = (c: { x: number; y: number }, sx: number, sy: number) => ({ id: id("pt"), x: c.x + sx, y: c.y + sy });
+  const P1a = mk(c1, px * r, py * r);
+  const P1b = mk(c1, -px * r, -py * r);
+  const P2a = mk(c2, px * r, py * r);
+  const P2b = mk(c2, -px * r, -py * r);
+  s.points = [c1, c2, P1a, P1b, P2a, P2b];
+  s.lines.push({ id: id("ln"), p1: P1a.id, p2: P2a.id });
+  s.lines.push({ id: id("ln"), p1: P1b.id, p2: P2b.id });
+  const via2 = { x: c2.x + ux * r, y: c2.y + uy * r };
+  s.arcs.push({ id: id("arc"), center: c2.id, start: P2a.id, end: P2b.id, ccw: isCcwThrough(c2, P2a, P2b, via2) });
+  const via1 = { x: c1.x - ux * r, y: c1.y - uy * r };
+  s.arcs.push({ id: id("arc"), center: c1.id, start: P1b.id, end: P1a.id, ccw: isCcwThrough(c1, P1b, P1a, via1) });
+  return s;
+}
+
+/** A ring of `count` holes on a bolt-circle of diameter `pcd` (one sketch). */
+function boltCircleSketch(plane: PlaneId, offset: number, cx: number, cy: number, pcd: number, holeDia: number, count: number, startDeg: number): ParametricSketch | null {
+  const n = Math.max(1, Math.round(count));
+  const R = Math.abs(pcd) / 2;
+  const hr = Math.abs(holeDia) / 2 || 4;
+  const s = emptySketch(plane, offset);
+  const start = (startDeg * Math.PI) / 180;
+  for (let i = 0; i < n; i++) {
+    const ang = start + (i * 2 * Math.PI) / n;
+    const c = { id: id("pt"), x: cx + R * Math.cos(ang), y: cy + R * Math.sin(ang) };
+    s.points.push(c);
+    s.circles.push({ id: id("ci"), center: c.id, r: hr });
+  }
+  return s;
+}
+
 function sketchFeature(name: string, sketch: ParametricSketch): SketchFeature {
   return { id: id("sketch"), type: "sketch", name, sketch };
 }
@@ -153,6 +225,38 @@ export function designToFeatures(design: Design, opts?: { continueSolid?: boolea
       features.push(sf);
       features.push(extrude(`Profile${n}`, sf.id, num(o.h, 20), hasSolid ? (o.op ?? "add") : "new"));
       hasSolid = true;
+      continue;
+    }
+
+    if (o.shape === "regularPolygon") {
+      const sk = regularPolygonSketch(plane, offset, x, y, num(o.sides, 6), num(o.diameter, 20) / 2, num(o.angle, 0));
+      if (!sk) continue;
+      const sf = sketchFeature(`Sketch${n}`, sk);
+      features.push(sf);
+      features.push(extrude(`Poly${n}`, sf.id, num(o.h, 20), hasSolid ? (o.op ?? "add") : "new"));
+      hasSolid = true;
+      continue;
+    }
+
+    if (o.shape === "slot") {
+      const sk = slotSketch(plane, offset, x, y, num(o.length, 30), num(o.width, 10), num(o.angle, 0));
+      if (!sk) continue;
+      const sf = sketchFeature(`Sketch${n}`, sk);
+      features.push(sf);
+      // A slot is usually a through/blind cut on an existing solid; else a boss.
+      const op: BoolOp = hasSolid ? (o.op ?? "cut") : "new";
+      features.push(extrude(`Slot${n}`, sf.id, op === "cut" ? num(o.depth, 30) : num(o.h, 20), op));
+      hasSolid = true;
+      continue;
+    }
+
+    if (o.shape === "boltCircle") {
+      if (!hasSolid) continue; // bolt holes cut into an existing flange/solid
+      const sk = boltCircleSketch(plane, offset, x, y, num(o.boltCircleDiameter, 60), num(o.holeDiameter, 8), num(o.count, 4), num(o.startAngle, 0));
+      if (!sk) continue;
+      const sf = sketchFeature(`Sketch${n}`, sk);
+      features.push(sf);
+      features.push(extrude(`BoltHoles${n}`, sf.id, num(o.depth, 30), "cut"));
       continue;
     }
 

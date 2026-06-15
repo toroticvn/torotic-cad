@@ -47,6 +47,10 @@ Khi gọi apply_design:
 - mode="replace" để vẽ MỚI từ đầu; mode="append" để VẼ TIẾP lên mô hình hiện có (nhìn feature_tree: nếu đã có khối thì thường dùng append).
 - Thao tác đầu của một mô hình mới phải là "box" hoặc "cylinder" (hoặc "polygon") op "new". Lỗ dùng shape "hole" (tự cut; muốn xuyên thủng đặt depth ≥ chiều cao khối).
 - Hình tự do (không phải hộp/trụ): dùng shape "polygon" với "points" = danh sách [x,y] các đỉnh theo thứ tự (khép kín, ≥3 đỉnh), kèm "h" để đùn.
+- Đa giác đều (đai ốc, đầu bu-lông lục giác, bát giác): shape "regularPolygon" (sides, diameter = đường kính qua đỉnh, x, y, h, angle).
+- Rãnh / lỗ ô-van: shape "slot" (length = khoảng 2 tâm, width = bề rộng, x, y, angle; cắt thì op="cut" + depth, làm lồi thì op khác + h).
+- Mặt bích nhiều lỗ (vòng lỗ bu-lông): vẽ đĩa bằng "cylinder" trước, rồi shape "boltCircle" (boltCircleDiameter = PCD, holeDiameter, count, depth) để khoét cả vòng lỗ một lần.
+- Gân tăng cứng (rib): dùng "polygon" tạo tiết diện tam giác/chữ nhật mỏng rồi đùn (op="add"). Ren: tạm coi như lỗ/trụ trơn (chưa dựng ren xoắn).
 - Soi gương cả khối: shape "mirror", "mirrorPlane" ∈ {XY,XZ,YZ}, "merge" (true=gộp 1 khối, false=2 khối).
 - Lặp khối: "patternLinear" (count, dx,dy,dz) hoặc "patternCircular" (count, totalAngle, axis ∈ {x,y,z}).
 - Để SỬA/XOÁ: nếu cần bỏ feature cũ, đặt tên/id của chúng vào mảng "delete" (lấy từ feature_tree). Muốn đổi kích thước một feature thì xoá nó rồi dựng lại bằng số mới.
@@ -74,7 +78,7 @@ const APPLY_DESIGN_TOOL = {
         items: {
           type: "object",
           properties: {
-            shape: { type: "string", enum: ["box", "cylinder", "hole", "fillet", "chamfer", "polygon", "mirror", "patternLinear", "patternCircular"] },
+            shape: { type: "string", enum: ["box", "cylinder", "hole", "fillet", "chamfer", "polygon", "regularPolygon", "slot", "boltCircle", "mirror", "patternLinear", "patternCircular"] },
             op: { type: "string", enum: ["new", "add", "cut"], description: "Phép boolean (box/cylinder/hole/polygon)" },
             plane: { type: "string", enum: ["top", "front", "right"], description: "Mặt phẳng sketch (mặc định top)" },
             offset: { type: "number", description: "Dịch mặt phẳng theo phương đùn (mm)" },
@@ -91,6 +95,13 @@ const APPLY_DESIGN_TOOL = {
               description: "polygon: các đỉnh [x,y] theo thứ tự, khép kín (≥3).",
               items: { type: "array", items: { type: "number" }, minItems: 2, maxItems: 2 },
             },
+            length: { type: "number", description: "slot: khoảng cách giữa 2 tâm đầu (mm)" },
+            width: { type: "number", description: "slot: bề rộng = đường kính đầu (mm)" },
+            angle: { type: "number", description: "góc trục slot / xoay đa giác đều (độ)" },
+            sides: { type: "number", description: "regularPolygon: số cạnh (≥3, vd lục giác=6)" },
+            boltCircleDiameter: { type: "number", description: "boltCircle: đường kính vòng chia lỗ PCD (mm)" },
+            holeDiameter: { type: "number", description: "boltCircle: đường kính mỗi lỗ (mm)" },
+            startAngle: { type: "number", description: "boltCircle: góc bắt đầu (độ)" },
             mirrorPlane: { type: "string", enum: ["XY", "XZ", "YZ"], description: "mirror: mặt phẳng soi gương" },
             merge: { type: "boolean", description: "mirror: gộp thành 1 khối (mặc định true)" },
             count: { type: "number", description: "pattern: tổng số bản (gồm bản gốc)" },

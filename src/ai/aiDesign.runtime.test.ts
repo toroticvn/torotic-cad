@@ -91,6 +91,24 @@ async function main() {
   const patSolid = rebuildSolids([...baseBox, ...pat]);
   check("linear pattern builds a body", patSolid.length >= 1 && patSolid[0].indices.length > 0, `bodies=${patSolid.length}`);
 
+  console.log("Runtime: regular polygon (hex nut blank) extrude:");
+  const hex = rebuildSolids(designToFeatures({ operations: [{ shape: "regularPolygon", sides: 6, diameter: 30, h: 12 }] }));
+  check("hexagon builds one body", hex.length === 1 && hex[0].indices.length > 0, `bodies=${hex.length}`);
+
+  console.log("Runtime: slot cut into a plate (append):");
+  const platforSlot = designToFeatures({ operations: [{ shape: "box", w: 80, d: 40, h: 10 }] });
+  const slotCut = designToFeatures({ mode: "append", operations: [{ shape: "slot", x: 0, y: 0, length: 40, width: 12, depth: 20, op: "cut" }] }, { continueSolid: true });
+  const slotSolid = rebuildSolids([...platforSlot, ...slotCut]);
+  check("slot cut keeps one body", slotSolid.length === 1 && slotSolid[0].indices.length > 0, `bodies=${slotSolid.length}`);
+  check("slot changed geometry", (slotSolid[0]?.positions.length ?? 0) !== (rebuildSolids(platforSlot)[0]?.positions.length ?? 0));
+
+  console.log("Runtime: flange (disk) + bolt circle of 6 holes:");
+  const disk = designToFeatures({ operations: [{ shape: "cylinder", diameter: 100, h: 12 }] });
+  const bolts = designToFeatures({ mode: "append", operations: [{ shape: "boltCircle", boltCircleDiameter: 70, holeDiameter: 9, count: 6, depth: 20 }] }, { continueSolid: true });
+  const flange = rebuildSolids([...disk, ...bolts]);
+  check("flange with bolt circle builds one body", flange.length === 1 && flange[0].indices.length > 0, `bodies=${flange.length}`);
+  check("bolt holes changed geometry", (flange[0]?.positions.length ?? 0) !== (rebuildSolids(disk)[0]?.positions.length ?? 0));
+
   console.log("Pure: delete-target matching (by name) filters the tree:");
   const tree = designToFeatures({ operations: [{ shape: "box", w: 40, d: 40, h: 10 }] });
   const holeF = designToFeatures({ mode: "append", operations: [{ shape: "hole", diameter: 8, depth: 20 }] }, { continueSolid: true });
