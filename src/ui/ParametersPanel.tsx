@@ -34,9 +34,11 @@ export function ParametersPanel() {
             {dims.map((d) => {
               const hasFormula = !!d.formula && d.formula.trim() !== "";
               const err = dimErrors[d.id];
+              const kindBadge = d.kind === "angle" ? "∠" : d.kind === "diameter" ? "Ø" : d.kind === "radius" ? "R" : "↔";
+              const kindTitle = d.kind === "angle" ? "Góc (độ)" : d.kind === "diameter" ? "Đường kính" : d.kind === "radius" ? "Bán kính" : "Khoảng cách / chiều dài";
               return (
                 <tr key={d.id} className={err ? "err" : ""}>
-                  <td className="dim-name">{d.name}</td>
+                  <td className="dim-name"><span className="dim-kind" title={kindTitle}>{kindBadge}</span> {d.name}</td>
                   <td>
                     <input
                       type="number"

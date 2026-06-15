@@ -746,15 +746,39 @@ export class SketchController {
     const store = useViewportStore.getState();
 
     // Smart Dimension (SolidWorks-style):
-    //  • 1 line  → length        • 2 lines → angle between them
-    //  • circle  → radius        • 2 points → distance
-    // A line click is held pending: the next pick decides length vs angle.
+    //  • 1 line → length   • 2 parallel lines → distance   • 2 slanted lines → angle
+    //  • circle → diameter   • 2 points → distance
+    // A line click is held pending: the next pick decides what to create.
     if (this.dimFirstLine) {
-      if (hit && hit.kind === "line" && hit.id !== this.dimFirstLine) {
-        store.addAngleDim(this.dimFirstLine, hit.id); // two lines → angle
-      } else {
-        const line = this.sketch!.lines.find((l) => l.id === this.dimFirstLine);
-        if (line) store.addDistanceDim(line.p1, line.p2); // same line / empty → length
+      const s = this.sketch!;
+      const l1 = s.lines.find((l) => l.id === this.dimFirstLine);
+      if (hit && hit.kind === "line" && hit.id !== this.dimFirstLine && l1) {
+        const l2 = s.lines.find((l) => l.id === hit.id)!;
+        const p = (id: string) => s.points.find((q) => q.id === id)!;
+        const d1 = unit(p(l1.p2).x - p(l1.p1).x, p(l1.p2).y - p(l1.p1).y);
+        const d2 = unit(p(l2.p2).x - p(l2.p1).x, p(l2.p2).y - p(l2.p1).y);
+        const cross = d1 && d2 ? Math.abs(d1.x * d2.y - d1.y * d2.x) : 1;
+        const dot = d1 && d2 ? Math.abs(d1.x * d2.x + d1.y * d2.y) : 0;
+        if (cross < 0.02) {
+          // Parallel → distance between the closest endpoints (e.g. plate width).
+          const ends1 = [l1.p1, l1.p2];
+          const ends2 = [l2.p1, l2.p2];
+          let best: [string, string] = [l1.p1, l2.p1];
+          let bd = Infinity;
+          for (const a of ends1) for (const b of ends2) {
+            const dd = Math.hypot(p(a).x - p(b).x, p(a).y - p(b).y);
+            if (dd < bd) { bd = dd; best = [a, b]; }
+          }
+          store.addDistanceDim(best[0], best[1]);
+        } else if (dot < 0.02) {
+          // Already perpendicular → an angle dim would conflict; give the first
+          // line's length instead (the useful dimension here).
+          store.addDistanceDim(l1.p1, l1.p2);
+        } else {
+          store.addAngleDim(this.dimFirstLine, hit.id); // slanted → real angle
+        }
+      } else if (l1) {
+        store.addDistanceDim(l1.p1, l1.p2); // same line / empty → length
       }
       this.dimFirstLine = null;
       store.setSelection([]);

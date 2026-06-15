@@ -24,7 +24,7 @@ const TOOL_INFO: Record<SketchTool, { name: string; hint: string }> = {
   split: { name: "Split (chia)", hint: "Click vào một đường hoặc cung để chia nó thành 2 đoạn tại điểm đó." },
   fillet: { name: "Sketch Fillet (bo góc)", hint: "Click vào điểm góc chung của 2 đường để bo cung tiếp tuyến." },
   sketchChamfer: { name: "Sketch Chamfer (vát góc)", hint: "Click vào điểm góc chung của 2 đường để vát thẳng theo khoảng đặt bên dưới." },
-  dimension: { name: "Smart Dimension", hint: "1 cạnh = chiều dài · 2 cạnh = GÓC giữa chúng · đường tròn = bán kính · 2 điểm = khoảng cách. (Click cạnh 1 rồi cạnh 2 để ghi góc; click cạnh rồi ra chỗ trống để ghi chiều dài.)" },
+  dimension: { name: "Smart Dimension", hint: "1 cạnh = chiều dài · 2 cạnh song song = khoảng cách · 2 cạnh xiên nhau = GÓC · đường tròn = Ø · 2 điểm = khoảng cách. (Click cạnh rồi ra chỗ trống = chiều dài.)" },
 };
 
 /** SolidWorks-style PropertyManager: active tool options + relations + status. */

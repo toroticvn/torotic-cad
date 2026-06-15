@@ -669,6 +669,13 @@ body,
   color: var(--accent);
   font-weight: 600;
 }
+.params-table .dim-kind {
+  display: inline-block;
+  min-width: 1.1em;
+  text-align: center;
+  color: #888;
+  font-weight: 700;
+}
 .params-table input {
   width: 100%;
   background: var(--panel-2);
