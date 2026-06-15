@@ -48,6 +48,7 @@ export type SketchTool =
   | "slot"
   | "trim"
   | "extend"
+  | "split"
   | "fillet"
   | "sketchChamfer"
   | "dimension";

@@ -20,6 +20,7 @@ const TOOL_INFO: Record<SketchTool, { name: string; hint: string }> = {
   slot: { name: "Slot (rãnh)", hint: "Click tâm đầu 1 → tâm đầu 2 → di chuột định bề rộng rồi click." },
   trim: { name: "Trim (cắt)", hint: "Click vào đối tượng (đường/cung/tròn) để xoá nó." },
   extend: { name: "Extend (kéo dài)", hint: "Click gần đầu của một đường để kéo dài đến khi gặp đối tượng khác." },
+  split: { name: "Split (chia)", hint: "Click vào một đường hoặc cung để chia nó thành 2 đoạn tại điểm đó." },
   fillet: { name: "Sketch Fillet (bo góc)", hint: "Click vào điểm góc chung của 2 đường để bo cung tiếp tuyến." },
   sketchChamfer: { name: "Sketch Chamfer (vát góc)", hint: "Click vào điểm góc chung của 2 đường để vát thẳng theo khoảng đặt bên dưới." },
   dimension: { name: "Smart Dimension", hint: "1 cạnh = chiều dài · 2 cạnh = GÓC giữa chúng · đường tròn = bán kính · 2 điểm = khoảng cách. (Click cạnh 1 rồi cạnh 2 để ghi góc; click cạnh rồi ra chỗ trống để ghi chiều dài.)" },

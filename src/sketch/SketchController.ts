@@ -208,6 +208,7 @@ export class SketchController {
     if (this.tool === "dimension") return this.handleDimension(raw);
     if (this.tool === "trim") return this.handleTrim(raw);
     if (this.tool === "extend") return this.handleExtend(raw);
+    if (this.tool === "split") return this.handleSplit(raw);
     if (this.tool === "fillet") return this.handleFillet(raw);
     if (this.tool === "sketchChamfer") return this.handleChamfer(raw);
 
@@ -225,6 +226,7 @@ export class SketchController {
       this.tool === "dimension" ||
       this.tool === "trim" ||
       this.tool === "extend" ||
+      this.tool === "split" ||
       this.tool === "fillet" ||
       this.tool === "sketchChamfer";
     if (!raw || noDraw) {
@@ -770,6 +772,44 @@ export class SketchController {
       if (best) {
         end.x = (best as Point2).x;
         end.y = (best as Point2).y;
+      }
+    });
+  }
+
+  // Split: click on a line or arc to cut it into two at that point.
+  private handleSplit(raw: Point2) {
+    const hit = this.pick(raw);
+    if (!hit) return;
+    useViewportStore.getState().applyChange((s) => {
+      if (hit.kind === "line") {
+        const l = s.lines.find((x) => x.id === hit.id);
+        if (!l) return;
+        const a = s.points.find((p) => p.id === l.p1)!;
+        const b = s.points.find((p) => p.id === l.p2)!;
+        const dx = b.x - a.x, dy = b.y - a.y;
+        const len2 = dx * dx + dy * dy;
+        if (len2 < 1e-9) return;
+        const t = clamp(((raw.x - a.x) * dx + (raw.y - a.y) * dy) / len2, 0.02, 0.98);
+        const mid: SketchPoint = { id: uid("pt"), x: a.x + dx * t, y: a.y + dy * t };
+        s.points.push(mid);
+        s.lines = s.lines.filter((x) => x.id !== l.id);
+        s.lines.push({ id: uid("ln"), p1: l.p1, p2: mid.id, construction: l.construction });
+        s.lines.push({ id: uid("ln"), p1: mid.id, p2: l.p2, construction: l.construction });
+      } else if (hit.kind === "arc") {
+        const ar = s.arcs.find((x) => x.id === hit.id);
+        if (!ar) return;
+        const ctr = s.points.find((p) => p.id === ar.center)!;
+        const st = s.points.find((p) => p.id === ar.start)!;
+        const r = Math.hypot(st.x - ctr.x, st.y - ctr.y);
+        const ang = Math.atan2(raw.y - ctr.y, raw.x - ctr.x);
+        const mid: SketchPoint = { id: uid("pt"), x: ctr.x + Math.cos(ang) * r, y: ctr.y + Math.sin(ang) * r };
+        // Only split if the click point actually lies on the arc's sweep.
+        const en = s.points.find((p) => p.id === ar.end)!;
+        if (distToArc(ctr, st, en, ar.ccw, mid) > 0.6) return;
+        s.points.push(mid);
+        s.arcs = s.arcs.filter((x) => x.id !== ar.id);
+        s.arcs.push({ id: uid("arc"), center: ar.center, start: ar.start, end: mid.id, ccw: ar.ccw, construction: ar.construction });
+        s.arcs.push({ id: uid("arc"), center: ar.center, start: mid.id, end: ar.end, ccw: ar.ccw, construction: ar.construction });
       }
     });
   }
