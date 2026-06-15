@@ -204,4 +204,4 @@ NODE_OPTIONS=--use-system-ca node -e "require('esbuild').buildSync({entryPoints:
 
 ---
 
-*Sản phẩm: Torotic CAD · Thuộc chương trình Torotic AI · Thư mục: `CodeRoadMap`*
+*Sản phẩm: Torotic CAD · Thuộc chương trình Torotic AI · Thư mục: `Code3DCad`*

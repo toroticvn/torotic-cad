@@ -152,4 +152,4 @@ node -e "require('esbuild').buildSync({entryPoints:['src/kernel/rebuild.runtime.
 
 ---
 
-*Sản phẩm: Torotic CAD · Thuộc chương trình Torotic AI · Thư mục: `CodeRoadMap`*
+*Sản phẩm: Torotic CAD · Thuộc chương trình Torotic AI · Thư mục: `Code3DCad`*

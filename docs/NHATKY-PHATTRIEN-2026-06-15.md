@@ -141,4 +141,4 @@ df9a6ba AI: agentic assistant that draws & edits the model from chat
 
 ---
 
-*Sản phẩm: Torotic CAD · Thuộc chương trình Torotic AI · Thư mục: `CodeRoadMap` · Live: torotic‑cad.pages.dev*
+*Sản phẩm: Torotic CAD · Thuộc chương trình Torotic AI · Thư mục: `Code3DCad` · Live: torotic‑cad.pages.dev*

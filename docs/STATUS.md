@@ -3,7 +3,7 @@
 > File này tóm tắt tình trạng dự án để đọc nhanh khi quay lại. Cập nhật lần cuối: **2026-06-13** (sau khi clone xong bộ công cụ Sketch Đợt 1–9).
 
 ## 1. Dự án là gì
-**Torotic CAD** — web app CAD 3D tham số kiểu SolidWorks (sketch → ràng buộc → feature → khối B-rep → cây tính năng). Thư mục: `c:\Users\Admin\Desktop\CodeRoadMap`.
+**Torotic CAD** — web app CAD 3D tham số kiểu SolidWorks (sketch → ràng buộc → feature → khối B-rep → cây tính năng). Thư mục: `c:\Users\Admin\Desktop\Code3DCad`.
 
 - **Stack:** React 18 + TypeScript + Vite 5.4 + three.js + zustand + replicad (OpenCASCADE WASM, bản single-thread ~11MB).
 - **Build:** `npm run build` (`tsc -b && vite build`) → thư mục `dist`.
