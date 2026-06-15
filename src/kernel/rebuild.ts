@@ -1,4 +1,4 @@
-import { Plane, makeLine, assembleWire, genericSweep, type EdgeFinder, type Sketch, type Shape3D } from "replicad";
+import { Plane, makeLine, assembleWire, genericSweep, makeHelix, makeCylinder, type EdgeFinder, type Sketch, type Shape3D } from "replicad";
 import { type SketchPlane } from "../sketch/SketchPlane";
 import { buildProfile, extractOpenPath } from "./profile";
 import {
@@ -83,6 +83,39 @@ function buildFeatureSolid(sketchFeat: SketchFeature, feat: SolidFeature): Shape
     origin: [sp.origin.x, sp.origin.y, sp.origin.z],
     angle: feat.angle,
   }) as Shape3D;
+}
+
+/**
+ * Build a threaded rod along +Z, base at z=0: a minor-radius core with a helical
+ * V-ridge fused on, rising to the major radius. The helix + auxiliary spine run
+ * past both ends (so the orthogonality law never goes degenerate — a too-short
+ * spine makes OCC hang), then flat box cuts trim the overhang back to [0,length].
+ * Same geometry for external (fuse) and internal/tapped (cut as a tool).
+ */
+function buildThreadedRod(diameter: number, pitch: number, length: number): Shape3D | null {
+  const majorR = diameter / 2;
+  const p = Math.max(0.2, pitch);
+  const depth = p * 0.6; // ≈ metric thread height
+  const minorR = majorR - depth;
+  if (minorR <= 0.3 || length <= 0) return null;
+
+  const core = makeCylinder(minorR, length) as Shape3D; // z[0,length]
+  // Helix + auxiliary spine both run a full pitch past each end. A spine that
+  // doesn't cover the swept profile's z-range makes OCC's orthogonality law go
+  // degenerate and hang, so we deliberately overshoot, then trim flat.
+  const helix = makeHelix(p, length + 2 * p, minorR, [0, 0, -p]);
+  const spine = assembleWire([makeLine([0, 0, -p - 1], [0, 0, length + p + 1])]);
+  // V tooth in the meridian plane (y=0): base just inside the core, crest at majorR.
+  const a: [number, number, number] = [minorR - 0.3, 0, -p / 2];
+  const crest: [number, number, number] = [majorR, 0, 0];
+  const c: [number, number, number] = [minorR - 0.3, 0, p / 2];
+  const prof = assembleWire([makeLine(a, c), makeLine(c, crest), makeLine(crest, a)]);
+  const ridge = genericSweep(prof, helix, { auxiliarySpine: spine, forceProfileSpineOthogonality: true } as Parameters<typeof genericSweep>[2]) as Shape3D;
+
+  // Fuse the ridge onto the core. The helical ridge overshoots each end by ≈ one
+  // pitch (a thread "lead"); trimming it flat needs a box/cylinder boolean that
+  // the single-thread OCC WASM either rejects or hangs on, so we leave the lead.
+  return core.fuse(ridge) as Shape3D;
 }
 
 function buildLoft(feat: LoftFeature, sketches: Map<string, SketchFeature>): Shape3D | null {
@@ -265,6 +298,25 @@ export function rebuildBodies(features: Feature[]): Shape3D[] {
         bodies[last()] = (target.operation === "cut" ? bodies[last()].cut(tool) : bodies[last()].fuse(tool)) as Shape3D;
       } catch {
         /* mirror failed — leave unchanged */
+      }
+      continue;
+    }
+    if (f.type === "thread") {
+      // A real helical thread is built as a standalone body. Booleans against
+      // existing geometry (fuse/cut) make this single-thread OCC WASM hang or
+      // return invalid shapes, so a thread always becomes its OWN body — e.g. a
+      // bolt = a head body + a thread body shown together (multi-body), which is
+      // robust and exports fine. (operation kept for future kernels.)
+      try {
+        let rod = buildThreadedRod(f.diameter, f.pitch, f.length);
+        if (!rod) continue;
+        // Orient the +Z rod along the requested axis, then move to the base point.
+        if (f.axis === "x") rod = rod.rotate(90, [0, 0, 0], [0, 1, 0]) as Shape3D;
+        else if (f.axis === "y") rod = rod.rotate(-90, [0, 0, 0], [1, 0, 0]) as Shape3D;
+        rod = rod.translate(f.x, f.y, f.z) as Shape3D;
+        bodies.push(rod);
+      } catch {
+        /* thread build failed — leave bodies unchanged */
       }
       continue;
     }

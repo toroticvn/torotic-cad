@@ -12,6 +12,7 @@ export function Toolbar() {
   const startShell = useViewportStore((s) => s.startShell);
   const startDraft = useViewportStore((s) => s.startDraft);
   const addBodyOp = useViewportStore((s) => s.addBodyOp);
+  const addThread = useViewportStore((s) => s.addThread);
   const addRefPlane = useViewportStore((s) => s.addRefPlane);
   const exportModel = useViewportStore((s) => s.exportModel);
   const saveProject = useViewportStore((s) => s.saveProject);
@@ -93,6 +94,7 @@ export function Toolbar() {
       </div>
 
       <div className="tool-group">
+        <button onClick={addThread} title="Ren xoắn ngoài (helix thật) — tạo thành khối ren riêng">🌀 Ren</button>
         <button onClick={addRefPlane} title="Tạo mặt phẳng tham chiếu (datum) để vẽ sketch trên đó">▭ Mặt phẳng</button>
       </div>
 

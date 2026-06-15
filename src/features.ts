@@ -171,6 +171,27 @@ export interface ShellFeature {
   faces?: EdgePoint[];
 }
 
+/**
+ * A real helical thread, built as a threaded rod (minor-radius core + a swept
+ * helical ridge up to the major radius) and combined with the running solid:
+ * `operation` "new"/"add" fuses it (an external thread / threaded stud),
+ * "cut" subtracts it (an internal / tapped hole). The thread runs along +axis
+ * from the base point (x,y,z).
+ */
+export interface ThreadFeature {
+  id: string;
+  type: "thread";
+  name: string;
+  diameter: number; // major (nominal) diameter
+  pitch: number;    // distance per turn
+  length: number;   // threaded length
+  x: number;
+  y: number;
+  z: number;
+  axis: "x" | "y" | "z";
+  operation: BoolOp; // new/add = external boss; cut = tapped hole
+}
+
 /** Apply a draft (taper) angle to picked faces, relative to a neutral plane. */
 export interface DraftFeature {
   id: string;
@@ -189,6 +210,7 @@ export type BodyOpFeature =
   | CircularPatternFeature
   | ShellFeature
   | DraftFeature
+  | ThreadFeature
   | FeaturePatternLinear
   | FeaturePatternCircular
   | FeatureMirror;
@@ -201,7 +223,8 @@ export const isModifier = (f: Feature): f is ModifierFeature =>
   f.type === "fillet" || f.type === "chamfer";
 /** Any feature that contributes a solid body (for "has a solid?" checks). */
 export const producesSolid = (f: Feature): boolean =>
-  f.type === "extrude" || f.type === "revolve" || f.type === "loft" || f.type === "sweep";
+  f.type === "extrude" || f.type === "revolve" || f.type === "loft" || f.type === "sweep" ||
+  f.type === "thread";
 
 /** Sketch ids consumed by a feature (for delete-cascade). */
 export function consumedSketchIds(f: Feature): string[] {

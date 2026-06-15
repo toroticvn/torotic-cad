@@ -201,6 +201,12 @@ interface AppState {
       merge: boolean;
       base: string;
       offset: number;
+      diameter: number;
+      pitch: number;
+      length: number;
+      x: number;
+      y: number;
+      z: number;
     }>,
   ) => void;
   deleteFeature: (id: string) => void;
@@ -208,6 +214,8 @@ interface AppState {
   addModifier: (kind: "fillet" | "chamfer") => void;
   /** Add a 3D body operation (mirror / linear pattern / circular pattern). */
   addBodyOp: (kind: "mirrorBody" | "patternLinear" | "patternCircular") => void;
+  /** Add a real helical thread (external) as its own body. */
+  addThread: () => void;
   /** Add a reference datum plane (parallel to a standard plane, offset). */
   addRefPlane: () => void;
   /** Pattern a single feature (the given extrude/revolve) linearly or circularly. */
@@ -670,6 +678,17 @@ export const useViewportStore = create<AppState>((set, get) => ({
     else if (kind === "patternLinear")
       f = { id: uid(kind), type: "patternLinear", name: `LinearPattern${n}`, count: 3, dx: 30, dy: 0, dz: 0 };
     else f = { id: uid(kind), type: "patternCircular", name: `CircularPattern${n}`, count: 4, angle: 360, axis: "z" };
+    set((s) => ({ features: [...s.features, f], selectedFeatureId: f.id }));
+    void rebuild(get, set);
+  },
+
+  addThread: () => {
+    pushHistory(get, set);
+    const n = get().features.filter((f) => f.type === "thread").length + 1;
+    const f: Feature = {
+      id: uid("thread"), type: "thread", name: `Thread${n}`,
+      diameter: 10, pitch: 1.5, length: 20, x: 0, y: 0, z: 0, axis: "z", operation: "new",
+    };
     set((s) => ({ features: [...s.features, f], selectedFeatureId: f.id }));
     void rebuild(get, set);
   },

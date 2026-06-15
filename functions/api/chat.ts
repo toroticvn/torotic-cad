@@ -51,7 +51,8 @@ Khi gọi apply_design:
 - Rãnh / lỗ ô-van: shape "slot" (length = khoảng 2 tâm, width = bề rộng, x, y, angle; cắt thì op="cut" + depth, làm lồi thì op khác + h).
 - Mặt bích nhiều lỗ (vòng lỗ bu-lông): vẽ đĩa bằng "cylinder" trước, rồi shape "boltCircle" (boltCircleDiameter = PCD, holeDiameter, count, depth) để khoét cả vòng lỗ một lần.
 - Lỗ bậc / lỗ chìm (chỗ bắt bu-lông): shape "hole" với holeType="counterbore" (kèm cboreDiameter, cboreDepth) hoặc "countersink" (kèm csinkDiameter, csinkAngle). LUÔN đặt topOffset = chiều cao mặt trên của khối để phần khoét nằm đúng mặt trên.
-- Gân tăng cứng (rib): dùng "polygon" tạo tiết diện tam giác/chữ nhật mỏng rồi đùn (op="add"). Ren: tạm coi như lỗ/trụ trơn (chưa dựng ren xoắn).
+- Gân tăng cứng (rib): dùng "polygon" tạo tiết diện tam giác/chữ nhật mỏng rồi đùn (op="add").
+- Ren xoắn THẬT (bu-lông, ti ren, vít): shape "thread" — ren NGOÀI dạng helix thật. Tham số: diameter (đường kính danh nghĩa, vd M10→10), pitch (bước ren; bỏ trống sẽ tự lấy bước thô theo đường kính), length (chiều dài ren), x, y (tâm), offset (toạ độ gốc theo trục ren), axis ∈ {x,y,z} (mặc định z). Ren luôn là MỘT KHỐI RIÊNG (multi-body): muốn làm bu-lông thì tạo đầu bu-lông (regularPolygon/cylinder) rồi đặt "thread" nối tiếp ngay sau, cho chồng nhẹ vào đầu. Lưu ý hạn chế hiện tại: chưa làm được REN TRONG (lỗ taro) — nếu cần ren trong thì dùng lỗ trơn và nói rõ.
 - Soi gương cả khối: shape "mirror", "mirrorPlane" ∈ {XY,XZ,YZ}, "merge" (true=gộp 1 khối, false=2 khối).
 - Lặp khối: "patternLinear" (count, dx,dy,dz) hoặc "patternCircular" (count, totalAngle, axis ∈ {x,y,z}).
 - Để SỬA/XOÁ: nếu cần bỏ feature cũ, đặt tên/id của chúng vào mảng "delete" (lấy từ feature_tree). Muốn đổi kích thước một feature thì xoá nó rồi dựng lại bằng số mới.
@@ -79,7 +80,7 @@ const APPLY_DESIGN_TOOL = {
         items: {
           type: "object",
           properties: {
-            shape: { type: "string", enum: ["box", "cylinder", "hole", "fillet", "chamfer", "polygon", "regularPolygon", "slot", "boltCircle", "mirror", "patternLinear", "patternCircular"] },
+            shape: { type: "string", enum: ["box", "cylinder", "hole", "fillet", "chamfer", "polygon", "regularPolygon", "slot", "boltCircle", "thread", "mirror", "patternLinear", "patternCircular"] },
             op: { type: "string", enum: ["new", "add", "cut"], description: "Phép boolean (box/cylinder/hole/polygon)" },
             plane: { type: "string", enum: ["top", "front", "right"], description: "Mặt phẳng sketch (mặc định top)" },
             offset: { type: "number", description: "Dịch mặt phẳng theo phương đùn (mm)" },
@@ -96,8 +97,9 @@ const APPLY_DESIGN_TOOL = {
               description: "polygon: các đỉnh [x,y] theo thứ tự, khép kín (≥3).",
               items: { type: "array", items: { type: "number" }, minItems: 2, maxItems: 2 },
             },
-            length: { type: "number", description: "slot: khoảng cách giữa 2 tâm đầu (mm)" },
+            length: { type: "number", description: "slot: khoảng cách 2 tâm đầu / thread: chiều dài ren (mm)" },
             width: { type: "number", description: "slot: bề rộng = đường kính đầu (mm)" },
+            pitch: { type: "number", description: "thread: bước ren mỗi vòng (mm); bỏ trống tự tính theo đường kính" },
             angle: { type: "number", description: "góc trục slot / xoay đa giác đều (độ)" },
             sides: { type: "number", description: "regularPolygon: số cạnh (≥3, vd lục giác=6)" },
             boltCircleDiameter: { type: "number", description: "boltCircle: đường kính vòng chia lỗ PCD (mm)" },

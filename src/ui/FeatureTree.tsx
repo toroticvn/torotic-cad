@@ -10,6 +10,7 @@ const ICONS: Record<string, string> = {
   sweep: "〰️",
   fillet: "⌒",
   chamfer: "◣",
+  thread: "🌀",
 };
 
 /** Display name (Boss-Extrude / Cut-Extrude ... like SolidWorks). */

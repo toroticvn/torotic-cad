@@ -246,6 +246,41 @@ export function FeatureEditor() {
         </div>
       )}
 
+      {feature?.type === "thread" && (
+        <div className="pm-section">
+          <div className="pm-heading">{feature.name}</div>
+          <div className="pm-instruction">Ren xoắn ngoài (helix thật) — là một khối riêng (multi-body). Ren trong (lỗ taro) chưa hỗ trợ.</div>
+          <label className="pm-option">Đường kính (mm)
+            <input type="number" value={feature.diameter} disabled={busy} onChange={(e) => update(feature.id, { diameter: parseFloat(e.target.value) || 0 })} />
+          </label>
+          <label className="pm-option">Bước ren / pitch (mm)
+            <input type="number" step="0.1" value={feature.pitch} disabled={busy} onChange={(e) => update(feature.id, { pitch: parseFloat(e.target.value) || 0 })} />
+          </label>
+          <label className="pm-option">Chiều dài ren (mm)
+            <input type="number" value={feature.length} disabled={busy} onChange={(e) => update(feature.id, { length: parseFloat(e.target.value) || 0 })} />
+          </label>
+          <div className="pm-relations" style={{ gap: 8 }}>
+            <label className="pm-option" style={{ flex: 1 }}>X
+              <input type="number" value={feature.x} disabled={busy} onChange={(e) => update(feature.id, { x: parseFloat(e.target.value) || 0 })} />
+            </label>
+            <label className="pm-option" style={{ flex: 1 }}>Y
+              <input type="number" value={feature.y} disabled={busy} onChange={(e) => update(feature.id, { y: parseFloat(e.target.value) || 0 })} />
+            </label>
+            <label className="pm-option" style={{ flex: 1 }}>Z
+              <input type="number" value={feature.z} disabled={busy} onChange={(e) => update(feature.id, { z: parseFloat(e.target.value) || 0 })} />
+            </label>
+          </div>
+          <label className="pm-option">Trục ren
+            <select value={feature.axis} disabled={busy} onChange={(e) => update(feature.id, { axis: e.target.value as "x" | "y" | "z" })}>
+              <option value="z">Z (đứng)</option>
+              <option value="y">Y</option>
+              <option value="x">X</option>
+            </select>
+          </label>
+          <DeleteBtn onClick={() => del(feature.id)} />
+        </div>
+      )}
+
       <div className="params-hint">Sửa số → khối tự dựng lại (parametric rebuild theo cây).</div>
     </aside>
   );

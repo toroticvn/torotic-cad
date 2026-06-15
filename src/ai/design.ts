@@ -19,6 +19,7 @@ export interface DesignOp {
     | "regularPolygon"
     | "slot"
     | "boltCircle"
+    | "thread"
     | "mirror"
     | "patternLinear"
     | "patternCircular";
@@ -38,6 +39,8 @@ export interface DesignOp {
   /** slot: length between the two end centers + width (overall = length+width). */
   length?: number;
   width?: number;
+  /** thread: distance per turn (mm). Defaults to a coarse metric pitch for the diameter. */
+  pitch?: number;
   /** angle of the slot axis / regularPolygon rotation, in degrees. */
   angle?: number;
   /** regularPolygon: number of sides (≥3); size given by `diameter` (across corners). */
@@ -278,6 +281,20 @@ export function designToFeatures(design: Design, opts?: { continueSolid?: boolea
       const sf = sketchFeature(`Sketch${n}`, sk);
       features.push(sf);
       features.push(extrude(`BoltHoles${n}`, sf.id, num(o.depth, 30), "cut"));
+      continue;
+    }
+
+    if (o.shape === "thread") {
+      const dia = num(o.diameter, 10);
+      // Coarse metric pitch default (~M-series): ≈ 15% of diameter, ≥0.5mm.
+      const pitch = num(o.pitch, Math.max(0.5, Math.round(dia * 0.15 * 10) / 10));
+      const axis = (["x", "y", "z"] as const).includes(o.axis as "z") ? (o.axis as "x" | "y" | "z") : "z";
+      features.push({
+        id: id("thread"), type: "thread", name: `Thread${n}`,
+        diameter: dia, pitch, length: num(o.length, 20),
+        x, y, z: offset, axis, operation: "new",
+      });
+      hasSolid = true;
       continue;
     }
 
