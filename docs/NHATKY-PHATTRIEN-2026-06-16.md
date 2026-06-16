@@ -61,6 +61,13 @@ Trước đây AI không tạo được khối tròn xoay (trục, chốt, bạc
 - `chat.ts`: thêm `"revolve"` vào enum shape + `revolveAxis` + hướng dẫn (vd trục bậc Ø20 dài 40 + Ø12 dài 20 → points `[[0,0],[40,0],[40,10],[20,10],[20,6],[0,6]]`, revolveAxis "u").
 - Test (`aiDesign.runtime.test.ts`): trục bậc xoay 360° về trục u + nửa khối xoay 180° về trục v — đều dựng 1 body.
 
+## 2e. AI vẽ Sweep + Loft
+
+- **Sweep** (ống/dây cong, tay nắm): shape `"sweep"` — `profileDiameter` (tiết diện tròn, mặc định 8) quét dọc `pathPoints` (polyline hở [x,y] ≥2 điểm). `designToFeatures` **cố định cấu hình hình học đã chứng minh chạy**: profile tròn trên mặt **front** tại gốc + path trên mặt **right** (`pathSketch` = polyline hở) → `SweepFeature`. AI chỉ cần cho Ø + điểm path, không lo dựng plane sai.
+- **Loft** (ống chuyển bậc, phễu vuông-tròn, cánh): shape `"loft"` + `loftSections` = mảng ≥2 tiết diện theo `offset` tăng dần; mỗi tiết diện là tròn (`diameter`), chữ nhật (`w`/`d`), hoặc tự do (`points`). Các tiết diện cùng mặt phẳng, khác offset (mặt song song) → `LoftFeature`.
+- `chat.ts`: thêm `"sweep"`/`"loft"` vào enum + `profileDiameter`/`pathPoints`/`loftSections` trong tool schema + hướng dẫn (vd ống Ø10 chữ L; ống Ø40→Ø16 cao 50).
+- Test: sweep ống Ø10 theo path chữ L; loft Ø40→Ø16; loft vuông→tròn — đều 1 body.
+
 ## 3. File đụng tới
 - `src/ai/design.ts` — `ModifyOp`, `Design.modify`, `applyModify`, `resizeSketch`; shape `"shell"` + `edgeRegion`/`faceRegion`/`thickness`.
 - `src/ai/api.ts` — `chat()` nhận thêm tham số `selected`, gửi trong body.
@@ -69,7 +76,7 @@ Trước đây AI không tạo được khối tròn xoay (trục, chốt, bạc
 - `src/kernel/rebuild.ts` — `shapeBounds`/`edgesInRegion`/`facesInRegion`; fillet/chamfer/shell dùng region khi không pick.
 - `src/ui/Toolbar.tsx` — nút 🔍 Giải thích.
 - `functions/api/chat.ts` — `body.selected` → context; `modify` + `shell`/region trong tool schema; hướng dẫn trong system prompt.
-- `src/ai/aiDesign.runtime.test.ts` — 5 case `modify` + 6 case region + 2 case revolve (trục bậc 360°, nửa khối 180°).
+- `src/ai/aiDesign.runtime.test.ts` — 5 case `modify` + 6 case region + 2 case revolve + 3 case sweep/loft (ống chữ L, reducer tròn, vuông→tròn).
 
 ## 4. Kiểm thử
 `NODE_OPTIONS=--use-system-ca npm test` → **8/8 bộ ALL PASS**. Case modify mới: đổi chiều cao box, đổi Ø lỗ (resize sketch), nới rộng box, khớp theo id + bỏ qua target lạ, đổi bán kính fillet.

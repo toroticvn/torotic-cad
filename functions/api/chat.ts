@@ -49,6 +49,8 @@ Khi gọi apply_design:
 - Thao tác đầu của một mô hình mới phải là "box" hoặc "cylinder" (hoặc "polygon") op "new". Lỗ dùng shape "hole" (tự cut; muốn xuyên thủng đặt depth ≥ chiều cao khối).
 - Hình tự do (không phải hộp/trụ): dùng shape "polygon" với "points" = danh sách [x,y] các đỉnh theo thứ tự (khép kín, ≥3 đỉnh), kèm "h" để đùn.
 - Khối TRÒN XOAY (trục, chốt, bạc, núm, cổ chai, phễu, ống bậc): shape "revolve" — biên dạng nửa mặt cắt là "points" [x,y] (khép kín, ≥3 đỉnh) nằm HẲN VỀ MỘT PHÍA của trục xoay, kèm "revolveAxis" ∈ {u,v} (trục đi qua gốc toạ độ sketch; u = trục ngang/x, v = trục dọc/y) và "totalAngle" (góc xoay, mặc định 360). Biên dạng KHÔNG được cắt qua trục. Vd trục bậc Ø20 dài 40 + Ø12 dài 20 quanh trục u: points [[0,0],[40,0],[40,10],[20,10],[20,6],[0,6]] (10 = bán kính 20/2), revolveAxis "u".
+- Ống/dây cong, tay nắm (QUÉT biên dạng theo đường dẫn): shape "sweep" — tiết diện tròn "profileDiameter" (mặc định 8) quét dọc đường "pathPoints" = danh sách [x,y] (≥2 điểm, đường gấp khúc hở). Vd ống Ø10 uốn chữ L: profileDiameter 10, pathPoints [[0,0],[-40,0],[-40,30]].
+- Khối NỐI nhiều tiết diện (ống chuyển bậc, phễu vuông-tròn, cánh): shape "loft" — "loftSections" = mảng ≥2 tiết diện xếp theo "offset" tăng dần (offset = khoảng cách dọc phương đùn). Mỗi tiết diện là tròn ("diameter"), chữ nhật ("w","d"), hoặc tự do ("points" [x,y] khép kín ≥3). Vd ống tròn Ø40→Ø16 cao 50: loftSections [{offset:0,diameter:40},{offset:50,diameter:16}].
 - Đa giác đều (đai ốc, đầu bu-lông lục giác, bát giác): shape "regularPolygon" (sides, diameter = đường kính qua đỉnh, x, y, h, angle).
 - Rãnh / lỗ ô-van: shape "slot" (length = khoảng 2 tâm, width = bề rộng, x, y, angle; cắt thì op="cut" + depth, làm lồi thì op khác + h).
 - Mặt bích nhiều lỗ (vòng lỗ bu-lông): vẽ đĩa bằng "cylinder" trước, rồi shape "boltCircle" (boltCircleDiameter = PCD, holeDiameter, count, depth) để khoét cả vòng lỗ một lần.
@@ -113,9 +115,29 @@ const APPLY_DESIGN_TOOL = {
         items: {
           type: "object",
           properties: {
-            shape: { type: "string", enum: ["box", "cylinder", "hole", "fillet", "chamfer", "shell", "polygon", "revolve", "regularPolygon", "slot", "boltCircle", "thread", "mirror", "patternLinear", "patternCircular"] },
-            op: { type: "string", enum: ["new", "add", "cut"], description: "Phép boolean (box/cylinder/hole/polygon/revolve)" },
+            shape: { type: "string", enum: ["box", "cylinder", "hole", "fillet", "chamfer", "shell", "polygon", "revolve", "sweep", "loft", "regularPolygon", "slot", "boltCircle", "thread", "mirror", "patternLinear", "patternCircular"] },
+            op: { type: "string", enum: ["new", "add", "cut"], description: "Phép boolean (box/cylinder/hole/polygon/revolve/sweep/loft)" },
             revolveAxis: { type: "string", enum: ["u", "v"], description: "revolve: trục xoay qua gốc sketch (u=ngang, v=dọc)" },
+            profileDiameter: { type: "number", description: "sweep: đường kính tiết diện tròn (mm, mặc định 8)" },
+            pathPoints: {
+              type: "array",
+              description: "sweep: đường dẫn — danh sách [x,y] (≥2 điểm, gấp khúc hở).",
+              items: { type: "array", items: { type: "number" }, minItems: 2, maxItems: 2 },
+            },
+            loftSections: {
+              type: "array",
+              description: "loft: ≥2 tiết diện theo offset tăng dần.",
+              items: {
+                type: "object",
+                properties: {
+                  offset: { type: "number", description: "vị trí dọc phương đùn (mm)" },
+                  diameter: { type: "number", description: "tiết diện tròn (mm)" },
+                  w: { type: "number", description: "tiết diện chữ nhật: rộng (mm)" },
+                  d: { type: "number", description: "tiết diện chữ nhật: sâu (mm)" },
+                  points: { type: "array", description: "tiết diện tự do [x,y] khép kín", items: { type: "array", items: { type: "number" }, minItems: 2, maxItems: 2 } },
+                },
+              },
+            },
             edgeRegion: { type: "string", enum: ["all", "top", "bottom", "vertical", "horizontal"], description: "fillet/chamfer: vùng cạnh cần xử lý (mặc định all)" },
             faceRegion: { type: "string", enum: ["top", "bottom", "front", "back", "left", "right"], description: "shell: mặt để hở (mặc định top)" },
             thickness: { type: "number", description: "shell: độ dày thành (mm)" },

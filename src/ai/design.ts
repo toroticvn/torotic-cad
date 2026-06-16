@@ -8,6 +8,16 @@ import { isCcwThrough } from "../sketch/arc";
  * /api/generate), and the converter that expands it into the app's feature tree.
  */
 
+/** One cross-section of a loft: a circle (`diameter`), rectangle (`w`/`d`), or
+ * free polygon (`points`), placed at `offset` along the sketch-plane normal. */
+export interface LoftSection {
+  offset?: number;
+  diameter?: number;
+  w?: number;
+  d?: number;
+  points?: [number, number][];
+}
+
 export interface DesignOp {
   shape:
     | "box"
@@ -18,6 +28,8 @@ export interface DesignOp {
     | "shell"
     | "polygon"
     | "revolve"
+    | "sweep"
+    | "loft"
     | "regularPolygon"
     | "slot"
     | "boltCircle"
@@ -28,6 +40,12 @@ export interface DesignOp {
   op?: BoolOp;
   /** revolve: which sketch-plane axis through the origin to spin the profile about. */
   revolveAxis?: "u" | "v";
+  /** sweep: circular cross-section diameter (default 8). */
+  profileDiameter?: number;
+  /** sweep: the path as an open polyline of [x,y] points (≥2) on the right plane. */
+  pathPoints?: [number, number][];
+  /** loft: ≥2 cross-sections at increasing `offset`, blended into one solid. */
+  loftSections?: LoftSection[];
   /** fillet/chamfer: which edges to round when not picked (default all). */
   edgeRegion?: "all" | "top" | "bottom" | "vertical" | "horizontal";
   /** shell: which face to open (default top); thickness via `radius`/`depth`/`thickness`. */
@@ -235,6 +253,17 @@ function boltCircleSketch(plane: PlaneId, offset: number, cx: number, cy: number
   return s;
 }
 
+/** An OPEN polyline (sweep path): points joined by lines, NOT closed. */
+function pathSketch(plane: PlaneId, points: [number, number][]): ParametricSketch | null {
+  const valid = (points ?? []).filter((p) => Array.isArray(p) && isFinite(p[0]) && isFinite(p[1]));
+  if (valid.length < 2) return null;
+  const s = emptySketch(plane, 0);
+  const pts = valid.map(([x, y]) => ({ id: id("pt"), x, y }));
+  s.points = pts;
+  for (let i = 0; i < pts.length - 1; i++) s.lines.push({ id: id("ln"), p1: pts[i].id, p2: pts[i + 1].id });
+  return s;
+}
+
 function sketchFeature(name: string, sketch: ParametricSketch): SketchFeature {
   return { id: id("sketch"), type: "sketch", name, sketch };
 }
@@ -317,6 +346,48 @@ export function designToFeatures(design: Design, opts?: { continueSolid?: boolea
         id: id("revolve"), type: "revolve", name: `Revolve${n}`,
         sketchId: sf.id, angle: num(o.totalAngle, 360), axis,
         operation: hasSolid ? (o.op ?? "add") : "new",
+      });
+      hasSolid = true;
+      continue;
+    }
+
+    if (o.shape === "sweep") {
+      // Robust fixed config (proven): circular profile on the FRONT plane at the
+      // origin, swept along an open polyline PATH on the RIGHT plane.
+      const path = pathSketch("right", o.pathPoints ?? o.points ?? []);
+      if (!path) continue; // need ≥2 path points
+      const profSk = circleSketch("front", 0, 0, 0, num(o.profileDiameter, 8) / 2);
+      const profFeat = sketchFeature(`SweepProfile${n}`, profSk);
+      const pathFeat = sketchFeature(`SweepPath${n}`, path);
+      features.push(profFeat, pathFeat);
+      features.push({
+        id: id("sweep"), type: "sweep", name: `Sweep${n}`,
+        profileSketchId: profFeat.id, pathSketchId: pathFeat.id,
+        operation: hasSolid ? (o.op ?? "add") : "new",
+      });
+      hasSolid = true;
+      continue;
+    }
+
+    if (o.shape === "loft") {
+      const secs = Array.isArray(o.loftSections) ? o.loftSections : [];
+      if (secs.length < 2) continue;
+      const sketchIds: string[] = [];
+      secs.forEach((sec, i) => {
+        const off = num(sec.offset, 0);
+        let sk: ParametricSketch | null;
+        if (sec.points && sec.points.length >= 3) sk = polygonSketch(plane, off, sec.points);
+        else if (typeof sec.diameter === "number") sk = circleSketch(plane, off, x, y, num(sec.diameter, 20) / 2);
+        else sk = rectSketch(plane, off, x, y, num(sec.w, 40), num(sec.d, 40));
+        if (!sk) return;
+        const sf = sketchFeature(`LoftSec${n}_${i + 1}`, sk);
+        features.push(sf);
+        sketchIds.push(sf.id);
+      });
+      if (sketchIds.length < 2) continue;
+      features.push({
+        id: id("loft"), type: "loft", name: `Loft${n}`,
+        sketchIds, operation: hasSolid ? (o.op ?? "add") : "new",
       });
       hasSolid = true;
       continue;

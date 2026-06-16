@@ -181,6 +181,17 @@ async function main() {
   const half = rebuildSolids(designToFeatures({ operations: [{ shape: "revolve", revolveAxis: "v", totalAngle: 180, points: [[0, 0], [8, 0], [8, 30], [0, 30]] }] }));
   check("revolve (partial 180°) builds one body", half.length === 1 && half[0].indices.length > 0, `bodies=${half.length}`);
 
+  console.log("Sweep: round tube along an L-shaped path:");
+  const tube = rebuildSolids(designToFeatures({ operations: [{ shape: "sweep", profileDiameter: 10, pathPoints: [[0, 0], [-40, 0], [-40, 30]] }] }));
+  check("sweep builds one body", tube.length === 1 && tube[0].indices.length > 0, `bodies=${tube.length}`);
+
+  console.log("Loft: round reducer Ø40 → Ø16 over 50:");
+  const reducer = rebuildSolids(designToFeatures({ operations: [{ shape: "loft", loftSections: [{ offset: 0, diameter: 40 }, { offset: 50, diameter: 16 }] }] }));
+  check("loft builds one body", reducer.length === 1 && reducer[0].indices.length > 0, `bodies=${reducer.length}`);
+  // Square-to-round transition (rect → circle) also lofts.
+  const sqToRound = rebuildSolids(designToFeatures({ operations: [{ shape: "loft", loftSections: [{ offset: 0, w: 40, d: 40 }, { offset: 40, diameter: 20 }] }] }));
+  check("square-to-round loft builds one body", sqToRound.length === 1 && sqToRound[0].indices.length > 0, `bodies=${sqToRound.length}`);
+
   console.log("Region fillet / shell (top-plane parts, +Y is up):");
   const rbox = designToFeatures({ operations: [{ shape: "box", w: 60, d: 40, h: 20 }] });
   const rbaseN = rebuildSolids(rbox)[0].positions.length;
