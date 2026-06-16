@@ -9,7 +9,7 @@ import {
   type ParametricSketch,
 } from "../sketch/model";
 import { solveSketch } from "../sketch/solveSketch";
-import { initKernel, rebuildSolids, exportSolid, solidEdges, ExtrudeError } from "../kernel/kernel";
+import { initKernel, rebuildSolids, exportSolid, solidEdges, ensureImports, ExtrudeError } from "../kernel/kernel";
 import { isSketch, producesSolid, consumedSketchIds, type BoolOp, type EdgePoint, type Feature } from "../features";
 import { buildSketchGroup, buildDatumPlane } from "../sketch/render3d";
 import { resolvePlane } from "../sketch/SketchPlane";
@@ -222,6 +222,8 @@ interface AppState {
   addThread: () => void;
   /** Build an embossed/standalone text profile (loads the font), extruded `depth` mm. */
   addText: (text: string, sizeMm: number, depth: number) => Promise<void>;
+  /** Import a .step/.stp/.stl file as a body to keep modeling on. */
+  importFile: (file: File) => Promise<void>;
   /** Add a reference datum plane (parallel to a standard plane, offset). */
   addRefPlane: () => void;
   /** Pattern a single feature (the given extrude/revolve) linearly or circularly. */
@@ -753,6 +755,36 @@ export const useViewportStore = create<AppState>((set, get) => ({
     await rebuild(get, set);
   },
 
+  importFile: async (file) => {
+    const ext = file.name.toLowerCase().split(".").pop() ?? "";
+    const format: "step" | "stl" = ext === "stl" ? "stl" : "step";
+    if (!["step", "stp", "stl"].includes(ext)) {
+      set({ featureError: "Chỉ hỗ trợ file .step / .stp / .stl." });
+      return;
+    }
+    if (!(await ensureKernel(set))) return;
+    try {
+      const buf = await file.arrayBuffer();
+      // base64-encode the bytes (chunked to avoid call-stack limits on big files).
+      const bytes = new Uint8Array(buf);
+      let bin = "";
+      const CHUNK = 0x8000;
+      for (let i = 0; i < bytes.length; i += CHUNK) bin += String.fromCharCode(...bytes.subarray(i, i + CHUNK));
+      const data = btoa(bin);
+      pushHistory(get, set);
+      const n = get().features.filter((f) => f.type === "import").length + 1;
+      const hasSolid = get().features.some(producesSolid);
+      const f: Feature = {
+        id: uid("import"), type: "import", name: `Import${n} (${file.name})`,
+        format, data, operation: hasSolid ? "add" : "new",
+      };
+      set((s) => ({ features: [...s.features, f], selectedFeatureId: f.id, mode: "model", sketch: null }));
+      await rebuild(get, set);
+    } catch (e) {
+      set({ featureError: "Không nhập được file: " + (e as Error).message });
+    }
+  },
+
   addRefPlane: () => {
     pushHistory(get, set);
     const n = get().features.filter((f) => f.type === "refPlane").length + 1;
@@ -855,6 +887,7 @@ export const useViewportStore = create<AppState>((set, get) => ({
     }
     if (!(await ensureKernel(set))) return;
     try {
+      await ensureImports(get().features);
       const blob = exportSolid(get().features, format);
       if (!blob) return;
       downloadBlob(blob, `torotic-model.${format}`);
@@ -1326,6 +1359,7 @@ async function rebuild(get: Get, set: Set): Promise<void> {
   }
   if (!(await ensureKernel(set))) return;
   try {
+    await ensureImports(get().features); // parse+cache any imported STEP/STL first
     const bodies = rebuildSolids(get().features);
     viewport.setSolids(bodies);
     viewport.frameModel();

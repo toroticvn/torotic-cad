@@ -5,7 +5,7 @@
 import { readFileSync } from "node:fs";
 import * as opentype from "opentype.js";
 import { loadOC } from "../kernel/loadOC";
-import { rebuildSolids } from "../kernel/rebuild";
+import { rebuildSolids, exportSolid, ensureImports } from "../kernel/rebuild";
 import { designToFeatures, applyModify, type Design } from "./design";
 import { setFont } from "../sketch/text";
 import { producesSolid, type Feature } from "../features";
@@ -221,6 +221,26 @@ async function main() {
   const braced = rebuildSolids([...wall, ...designToFeatures({ mode: "append", operations: [{ shape: "rib", plane: "front", x: 3, y: 0, length: 24, h: 30, thickness: 6, op: "add" }] }, { continueSolid: true })]);
   check("rib fuses onto a wall (one body)", braced.length === 1 && braced[0].indices.length > 0, `bodies=${braced.length}`);
   check("rib added geometry to the wall", (braced[0]?.positions.length ?? 0) !== wallN, `wall=${wallN} braced=${braced[0]?.positions.length}`);
+
+  console.log("Import: STEP/STL round-trip → body to keep modeling on:");
+  const srcBox = designToFeatures({ operations: [{ shape: "box", w: 30, d: 20, h: 10 }] });
+  const stepBlob = exportSolid(srcBox, "step");
+  if (!stepBlob) throw new Error("export STEP failed");
+  const stepB64 = Buffer.from(await stepBlob.arrayBuffer()).toString("base64");
+  const stepImport: Feature = { id: "imp1", type: "import", name: "Imp STEP", format: "step", data: stepB64, operation: "new" };
+  await ensureImports([stepImport]);
+  const impSolid = rebuildSolids([stepImport]);
+  check("imported STEP builds a body", impSolid.length >= 1 && impSolid[0].indices.length > 0, `bodies=${impSolid.length}`);
+  // Keep modeling on the import: drill a hole into it (append cut).
+  const impDrilled = rebuildSolids([stepImport, ...designToFeatures({ mode: "append", operations: [{ shape: "hole", x: 0, y: 0, diameter: 6, depth: 30 }] }, { continueSolid: true })]);
+  check("can keep modeling on imported STEP (hole changes geometry)", impDrilled.length >= 1 && (impDrilled[0]?.positions.length ?? 0) !== impSolid[0].positions.length, `imp=${impSolid[0].positions.length} drilled=${impDrilled[0]?.positions.length}`);
+
+  const stlBlob = exportSolid(srcBox, "stl");
+  if (!stlBlob) throw new Error("export STL failed");
+  const stlImport: Feature = { id: "imp2", type: "import", name: "Imp STL", format: "stl", data: Buffer.from(await stlBlob.arrayBuffer()).toString("base64"), operation: "new" };
+  await ensureImports([stlImport]);
+  const stlSolid = rebuildSolids([stlImport]);
+  check("imported STL builds a body", stlSolid.length >= 1 && stlSolid[0].indices.length > 0, `bodies=${stlSolid.length}`);
 
   console.log("Region fillet / shell (top-plane parts, +Y is up):");
   const rbox = designToFeatures({ operations: [{ shape: "box", w: 60, d: 40, h: 20 }] });

@@ -87,6 +87,13 @@ Trước đây gân phải dựng tay bằng polygon mỏng. Giờ shape `"rib"`
 - `chat.ts`: enum + `ribProfile` + hướng dẫn (gân tam giác cao 30 dọc đáy 20 dày 5 ở góc → rib plane front, x 0, y 0, length 20, h 30, thickness 5).
 - Test: gân tam giác + chữ nhật dựng 1 body; fuse gân lên vách → 1 body, tăng đỉnh.
 
+## 2h. Nhập file STEP/STL để vẽ tiếp (cho bản dùng thật)
+
+- **Kernel:** dùng `importSTEP`/`importSTL` của replicad (đọc qua B-rep OpenCASCADE → dựng tiếp được). Cả hai **async**, nhưng `rebuildBodies` đang **sync** và được gọi sync ở rất nhiều test → KHÔNG đổi rebuild sang async. Thay vào đó: parse 1 lần rồi **cache shape theo nội dung** (`importCache` + `importKey` hash trong `rebuild.ts`); hàm async `ensureImports(features)` parse các import chưa cache. `store.rebuild()` (chokepoint duy nhất) + `exportModel()` gọi `await ensureImports()` trước khi rebuild/export → mọi đường đều chạy, không re-parse mỗi lần sửa feature khác.
+- **Feature:** `ImportFeature {format:"step"|"stl", data:base64, operation}` (base64 để project tự chứa + save/load round-trip). Là solid producer (`producesSolid`). Nhánh trong `rebuildBodies`: lấy shape từ cache → `clone()` → push (new) hoặc fuse/cut.
+- **UI:** nút 📥 Nhập STEP/STL + input ẩn (.step/.stp/.stl) → `store.importFile(file)` (đọc arrayBuffer → base64 chunked → ImportFeature → rebuild). Panel "Thuộc tính Feature" cho import: đổi Khối riêng/Cộng/Trừ + Xoá. Icon 📥 trong cây.
+- **Test:** round-trip — export box→STEP→base64→`ensureImports`→rebuild ra body; khoan lỗ tiếp lên khối nhập (đổi hình học); STL round-trip ra body.
+
 ## 3. File đụng tới
 - `src/ai/design.ts` — `ModifyOp`, `Design.modify`, `applyModify`, `resizeSketch`; shape `"shell"` + `edgeRegion`/`faceRegion`/`thickness`.
 - `src/ai/api.ts` — `chat()` nhận thêm tham số `selected`, gửi trong body.
@@ -97,7 +104,8 @@ Trước đây gân phải dựng tay bằng polygon mỏng. Giờ shape `"rib"`
 - `functions/api/chat.ts` — `body.selected` → context; `modify` + `shell`/region trong tool schema; hướng dẫn trong system prompt.
 - `src/sketch/text.ts` (mới), `src/fonts/loadFont.ts` (mới), `src/fonts/Roboto-Regular.ttf` (mới) — Text.
 - `src/state/store.ts` — `addText` + `ensureFont` trong sendChat. `src/ui/Toolbar.tsx` — nút 🔤 Text.
-- `src/ai/aiDesign.runtime.test.ts` — 5 `modify` + 6 region + 2 revolve + 3 sweep/loft + 2 text + 4 rib.
+- `src/features.ts`, `src/kernel/rebuild.ts`, `src/kernel/kernel.ts`, `src/state/store.ts`, `src/ui/Toolbar.tsx`, `src/ui/FeatureEditor.tsx`, `src/ui/FeatureTree.tsx` — Import STEP/STL.
+- `src/ai/aiDesign.runtime.test.ts` — 5 `modify` + 6 region + 2 revolve + 3 sweep/loft + 2 text + 4 rib + 3 import.
 
 ## 4. Kiểm thử
 `NODE_OPTIONS=--use-system-ca npm test` → **8/8 bộ ALL PASS**. Case modify mới: đổi chiều cao box, đổi Ø lỗ (resize sketch), nới rộng box, khớp theo id + bỏ qua target lạ, đổi bán kính fillet.

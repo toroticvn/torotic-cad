@@ -18,6 +18,7 @@ export function Toolbar() {
   const exportModel = useViewportStore((s) => s.exportModel);
   const saveProject = useViewportStore((s) => s.saveProject);
   const loadProject = useViewportStore((s) => s.loadProject);
+  const importFile = useViewportStore((s) => s.importFile);
   const undo = useViewportStore((s) => s.undo);
   const redo = useViewportStore((s) => s.redo);
   const evaluateDrawing = useViewportStore((s) => s.evaluateDrawing);
@@ -30,6 +31,7 @@ export function Toolbar() {
   const selectedId = useViewportStore((s) => s.selectedFeatureId);
   const features = useViewportStore((s) => s.features);
   const fileRef = useRef<HTMLInputElement>(null);
+  const importRef = useRef<HTMLInputElement>(null);
 
   const selected = features.find((f) => f.id === selectedId);
   const canSolid = mode === "model" && selected?.type === "sketch";
@@ -65,6 +67,12 @@ export function Toolbar() {
     const file = e.target.files?.[0];
     if (!file) return;
     file.text().then(loadProject);
+    e.target.value = "";
+  };
+
+  const onImportFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) void importFile(file);
     e.target.value = "";
   };
 
@@ -117,9 +125,11 @@ export function Toolbar() {
       <div className="tool-group">
         <button onClick={saveProject} title="Lưu project (.json)">💾 Lưu</button>
         <button onClick={() => fileRef.current?.click()} title="Mở project">📂 Mở</button>
+        <button onClick={() => importRef.current?.click()} title="Nhập file STEP/STL để vẽ tiếp trên đó">📥 Nhập STEP/STL</button>
         <button onClick={() => exportModel("step")} disabled={!hasSolid} title="Xuất STEP">⬇ STEP</button>
         <button onClick={() => exportModel("stl")} disabled={!hasSolid} title="Xuất STL (in 3D)">⬇ STL</button>
         <input ref={fileRef} type="file" accept=".json,application/json" style={{ display: "none" }} onChange={onOpenFile} />
+        <input ref={importRef} type="file" accept=".step,.stp,.stl" style={{ display: "none" }} onChange={onImportFile} />
       </div>
 
       <div className="tool-group">

@@ -1,5 +1,5 @@
 import { useViewportStore } from "../state/store";
-import type { Feature } from "../features";
+import type { BoolOp, Feature } from "../features";
 
 /** Right panel (model mode): inspect/edit the selected feature; rebuilds live. */
 export function FeatureEditor() {
@@ -33,6 +33,22 @@ export function FeatureEditor() {
             <button className="pm-rel-btn" onClick={() => openRevolve(feature.id)}>🔄 Xoay</button>
             <button className="pm-rel-btn" onClick={() => del(feature.id)}>🗑 Xoá</button>
           </div>
+        </div>
+      )}
+
+      {feature?.type === "import" && (
+        <div className="pm-section">
+          <div className="pm-heading">{feature.name}</div>
+          <div className="pm-instruction">Khối nhập từ {feature.format.toUpperCase()}. Vẽ tiếp lên bằng Sketch → Extrude/Cut hoặc lệnh AI.</div>
+          <label className="pm-option">
+            Kết hợp
+            <select value={feature.operation} disabled={busy} onChange={(e) => update(feature.id, { operation: e.target.value as BoolOp })}>
+              <option value="new">Khối riêng</option>
+              <option value="add">Cộng (fuse)</option>
+              <option value="cut">Trừ (cut)</option>
+            </select>
+          </label>
+          <DeleteBtn onClick={() => del(feature.id)} />
         </div>
       )}
 

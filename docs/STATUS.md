@@ -8,6 +8,9 @@
 - **Stack:** React 18 + TypeScript + Vite 5.4 + three.js + zustand + replicad (OpenCASCADE WASM, bản single-thread ~11MB).
 - **Build:** `npm run build` (`tsc -b && vite build`) → thư mục `dist`.
 
+## 1b. Nhập file STEP/STL (mới 2026-06-16)
+Nút **📥 Nhập STEP/STL** trên toolbar → chọn `.step`/`.stp`/`.stl` → đọc bằng OpenCASCADE (`importSTEP`/`importSTL` của replicad, qua B-rep) thành **một khối trong cây tính năng** (`ImportFeature`, lưu base64 file để project tự chứa + dựng lại được). Vẽ tiếp lên khối nhập như khối thường: Sketch→Extrude/Cut, fillet/shell, hoặc lệnh AI. Trong panel "Thuộc tính Feature" đổi được kiểu kết hợp (Khối riêng/Cộng/Trừ) + xoá. Kỹ thuật: shape parse async được **cache theo nội dung** trong `rebuild.ts` (`ensureImports`) nên rebuild vẫn SYNC, sửa feature khác không re-parse; `store.rebuild()`/`exportModel()` gọi `await ensureImports()` trước. STL nhập qua B-rep nên boolean được (chậm/đôi khi lỗi với mesh phức tạp — STEP là tốt nhất để dựng tiếp).
+
 ## 2. Triển khai (deploy)
 - **Live:** https://torotic-cad.pages.dev
 - **Hạ tầng:** Cloudflare **Pages** (KHÔNG phải Worker — Workers Builds cần Vite 6, ta dùng Vite 5), git-connected, tự deploy mỗi lần `git push` lên `main`.

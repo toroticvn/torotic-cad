@@ -217,6 +217,22 @@ export interface DraftFeature {
   faces?: EdgePoint[];
 }
 
+/**
+ * A solid imported from a STEP or STL file (base64 in `data` so the project is
+ * self-contained and the rebuild can re-import it). It contributes a body like
+ * any solid feature — `operation` "new" = a standalone imported body to model on
+ * top of, "add"/"cut" = combine it with the running solid. The parsed shape is
+ * cached by content in the kernel so editing other features doesn't re-parse it.
+ */
+export interface ImportFeature {
+  id: string;
+  type: "import";
+  name: string;
+  format: "step" | "stl";
+  data: string; // base64 of the file bytes
+  operation: BoolOp;
+}
+
 export type SolidFeature = ExtrudeFeature | RevolveFeature;
 export type ModifierFeature = FilletFeature | ChamferFeature;
 export type BodyOpFeature =
@@ -229,7 +245,7 @@ export type BodyOpFeature =
   | FeaturePatternLinear
   | FeaturePatternCircular
   | FeatureMirror;
-export type Feature = SketchFeature | RefPlaneFeature | SolidFeature | LoftFeature | SweepFeature | ModifierFeature | BodyOpFeature;
+export type Feature = SketchFeature | RefPlaneFeature | SolidFeature | LoftFeature | SweepFeature | ModifierFeature | BodyOpFeature | ImportFeature;
 
 export const isSketch = (f: Feature): f is SketchFeature => f.type === "sketch";
 /** Solid features that consume a single sketch (have a `sketchId`). */
@@ -239,7 +255,7 @@ export const isModifier = (f: Feature): f is ModifierFeature =>
 /** Any feature that contributes a solid body (for "has a solid?" checks). */
 export const producesSolid = (f: Feature): boolean =>
   f.type === "extrude" || f.type === "revolve" || f.type === "loft" || f.type === "sweep" ||
-  f.type === "thread";
+  f.type === "thread" || f.type === "import";
 
 /** Sketch ids consumed by a feature (for delete-cascade). */
 export function consumedSketchIds(f: Feature): string[] {

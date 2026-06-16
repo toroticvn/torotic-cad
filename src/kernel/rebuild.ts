@@ -1,4 +1,4 @@
-import { Plane, makeLine, assembleWire, genericSweep, makeHelix, makeCylinder, type EdgeFinder, type Sketch, type Shape3D } from "replicad";
+import { Plane, makeLine, assembleWire, genericSweep, makeHelix, makeCylinder, importSTEP, importSTL, type EdgeFinder, type Sketch, type Shape3D } from "replicad";
 import { type SketchPlane } from "../sketch/SketchPlane";
 import { buildProfile, extractOpenPath } from "./profile";
 import {
@@ -7,6 +7,7 @@ import {
   type EdgeRegion,
   type FaceRegion,
   type Feature,
+  type ImportFeature,
   type LoftFeature,
   type SketchFeature,
   type SolidFeature,
@@ -52,6 +53,43 @@ function mirrorArgs(planeRef: string, features: Feature[]): [string, Triple?] {
     return [name, [n[0] * rp.offset, n[1] * rp.offset, n[2] * rp.offset]];
   }
   return ["YZ"]; // fallback
+}
+
+/**
+ * Imported STEP/STL shapes are parsed once (async, via OpenCASCADE) and cached by
+ * content, so the SYNC rebuild can pull them without re-parsing on every edit.
+ * Call `ensureImports(features)` (async) before rebuild whenever a project may
+ * contain unparsed import features (file import, project load).
+ */
+const importCache = new Map<string, Shape3D>();
+
+function importKey(f: ImportFeature): string {
+  let h = 0;
+  for (let i = 0; i < f.data.length; i++) h = (Math.imul(h, 31) + f.data.charCodeAt(i)) | 0;
+  return `${f.format}:${f.data.length}:${h}`;
+}
+
+function base64ToBlob(b64: string, mime: string): Blob {
+  const bin = atob(b64);
+  const arr = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+  return new Blob([arr], { type: mime });
+}
+
+/** Parse + cache any not-yet-loaded import features. Safe to call repeatedly. */
+export async function ensureImports(features: Feature[]): Promise<void> {
+  for (const f of features) {
+    if (f.type !== "import") continue;
+    const key = importKey(f);
+    if (importCache.has(key)) continue;
+    try {
+      const blob = base64ToBlob(f.data, f.format === "step" ? "application/step" : "model/stl");
+      const shape = f.format === "step" ? await importSTEP(blob) : await importSTL(blob);
+      importCache.set(key, shape as Shape3D);
+    } catch {
+      /* leave uncached — rebuild will skip this body */
+    }
+  }
 }
 
 function makePlane(sp: SketchPlane): Plane {
@@ -394,6 +432,19 @@ export function rebuildBodies(features: Feature[]): Shape3D[] {
         bodies[last()] = (target.operation === "cut" ? bodies[last()].cut(tool) : bodies[last()].fuse(tool)) as Shape3D;
       } catch {
         /* mirror failed — leave unchanged */
+      }
+      continue;
+    }
+    if (f.type === "import") {
+      // Pull the pre-parsed shape from the cache (store calls ensureImports first).
+      const cached = importCache.get(importKey(f));
+      if (!cached) continue; // not parsed yet → skip this rebuild
+      try {
+        const solid = cached.clone() as Shape3D;
+        if (bodies.length === 0 || f.operation === "new") bodies.push(solid);
+        else bodies[last()] = (f.operation === "cut" ? bodies[last()].cut(solid) : bodies[last()].fuse(solid)) as Shape3D;
+      } catch {
+        /* bad import shape — leave bodies unchanged */
       }
       continue;
     }

@@ -11,6 +11,7 @@ const ICONS: Record<string, string> = {
   fillet: "⌒",
   chamfer: "◣",
   thread: "🌀",
+  import: "📥",
 };
 
 /** Display name (Boss-Extrude / Cut-Extrude ... like SolidWorks). */
