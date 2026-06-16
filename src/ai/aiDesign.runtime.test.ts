@@ -172,6 +172,21 @@ async function main() {
   const fil = filMod.features.find((f) => f.type === "fillet");
   check("fillet radius modified 2 → 4", filMod.applied === 1 && fil?.type === "fillet" && fil.radius === 4, `r=${fil && fil.type === "fillet" ? fil.radius : "?"}`);
 
+  console.log("Region fillet / shell (top-plane parts, +Y is up):");
+  const rbox = designToFeatures({ operations: [{ shape: "box", w: 60, d: 40, h: 20 }] });
+  const rbaseN = rebuildSolids(rbox)[0].positions.length;
+  const filAll = rebuildSolids([...rbox, ...designToFeatures({ mode: "append", operations: [{ shape: "fillet", radius: 3, edgeRegion: "all" }] }, { continueSolid: true })]);
+  const filTop = rebuildSolids([...rbox, ...designToFeatures({ mode: "append", operations: [{ shape: "fillet", radius: 3, edgeRegion: "top" }] }, { continueSolid: true })]);
+  check("fillet all edges changes geometry", filAll[0].positions.length !== rbaseN, `base=${rbaseN} all=${filAll[0].positions.length}`);
+  check("fillet TOP edges changes geometry", filTop[0].positions.length !== rbaseN, `top=${filTop[0].positions.length}`);
+  check("fillet top differs from fillet all (rounds fewer edges)", filTop[0].positions.length !== filAll[0].positions.length, `top=${filTop[0].positions.length} all=${filAll[0].positions.length}`);
+
+  const shellTop = rebuildSolids([...rbox, ...designToFeatures({ mode: "append", operations: [{ shape: "shell", thickness: 2, faceRegion: "top" }] }, { continueSolid: true })]);
+  check("shell (open top) builds one body", shellTop.length === 1 && shellTop[0].indices.length > 0, `bodies=${shellTop.length}`);
+  check("shell hollows the box (more verts than the solid)", shellTop[0].positions.length > rbaseN, `solid=${rbaseN} shell=${shellTop[0].positions.length}`);
+  const shellBot = rebuildSolids([...rbox, ...designToFeatures({ mode: "append", operations: [{ shape: "shell", thickness: 2, faceRegion: "bottom" }] }, { continueSolid: true })]);
+  check("shell (open bottom) also builds one body", shellBot.length === 1 && shellBot[0].indices.length > 0, `bodies=${shellBot.length}`);
+
   console.log("Pure: delete-target matching (by name) filters the tree:");
   const tree = designToFeatures({ operations: [{ shape: "box", w: 40, d: 40, h: 10 }] });
   const holeF = designToFeatures({ mode: "append", operations: [{ shape: "hole", diameter: 8, depth: 20 }] }, { continueSolid: true });

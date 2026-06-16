@@ -124,6 +124,8 @@ interface AppState {
   sendChat: (text: string) => Promise<void>;
   /** Preset: open chat and ask Claude to review the current drawing. */
   evaluateDrawing: () => Promise<void>;
+  /** Preset: ask Claude to explain the currently-selected feature (no drawing). */
+  explainSelected: () => Promise<void>;
   /** Manual path: export image + prompt to use with a claude.ai subscription. */
   askClaudeAi: () => void;
 
@@ -400,6 +402,18 @@ export const useViewportStore = create<AppState>((set, get) => ({
   evaluateDrawing: async () => {
     await get().sendChat(
       "Hãy đánh giá bản vẽ này theo các mục: Tổng quan, Điểm tốt, Vấn đề & rủi ro, Khả năng chế tạo (DFM), Gợi ý cải tiến.",
+    );
+  },
+
+  explainSelected: async () => {
+    const sel = get().selectedFeatureId;
+    const f = sel ? get().features.find((x) => x.id === sel) : null;
+    if (!f) {
+      set({ chatOpen: true, chatError: "Chưa chọn feature nào. Bấm vào một feature trong cây tính năng rồi thử lại." });
+      return;
+    }
+    await get().sendChat(
+      `Giải thích feature "${f.name}" đang được chọn: nó là loại gì, các tham số hiện tại nghĩa là gì, vai trò của nó trong mô hình, và lưu ý/gợi ý cải tiến hoặc chế tạo (nếu có). CHỈ giải thích, KHÔNG vẽ hay sửa gì cả.`,
     );
   },
 

@@ -4,6 +4,8 @@ import { buildProfile, extractOpenPath } from "./profile";
 import {
   isSketch,
   type EdgePoint,
+  type EdgeRegion,
+  type FaceRegion,
   type Feature,
   type LoftFeature,
   type SketchFeature,
@@ -175,6 +177,91 @@ function matchEdges(shape: Shape3D, points: EdgePoint[]) {
   return [...chosen].map((i) => edges[i]);
 }
 
+/** Axis-aligned bounds of a body, sampled from its B-rep edges. */
+function shapeBounds(shape: Shape3D): { min: Triple; max: Triple } {
+  const min: Triple = [Infinity, Infinity, Infinity];
+  const max: Triple = [-Infinity, -Infinity, -Infinity];
+  for (const e of shape.edges) {
+    for (let k = 0; k <= 4; k++) {
+      let p: Triple;
+      try {
+        p = e.pointAt(k / 4).toTuple();
+      } catch {
+        continue;
+      }
+      for (let i = 0; i < 3; i++) {
+        if (p[i] < min[i]) min[i] = p[i];
+        if (p[i] > max[i]) max[i] = p[i];
+      }
+    }
+  }
+  return { min, max };
+}
+
+/**
+ * Resolve a semantic edge region into a concrete edge list. The model's "up"
+ * axis is +Y (default "top"-plane sketches extrude along +Y), so "top"/"bottom"
+ * = edges lying entirely on the max/min-Y face, "vertical" = edges that span Y,
+ * "horizontal" = edges of (near-)constant Y.
+ */
+function edgesInRegion(shape: Shape3D, region: EdgeRegion) {
+  const { min, max } = shapeBounds(shape);
+  const yExtent = Math.max(max[1] - min[1], 1);
+  const tol = Math.max(1e-3, 0.02 * yExtent);
+  const out = [];
+  for (const e of shape.edges) {
+    let yMin = Infinity, yMax = -Infinity;
+    let ok = false;
+    for (let k = 0; k <= 4; k++) {
+      try {
+        const y = e.pointAt(k / 4).toTuple()[1];
+        yMin = Math.min(yMin, y);
+        yMax = Math.max(yMax, y);
+        ok = true;
+      } catch {
+        /* skip */
+      }
+    }
+    if (!ok) continue;
+    const dy = yMax - yMin;
+    const atTop = Math.abs(yMax - max[1]) < tol && Math.abs(yMin - max[1]) < tol;
+    const atBottom = Math.abs(yMax - min[1]) < tol && Math.abs(yMin - min[1]) < tol;
+    if (
+      (region === "top" && atTop) ||
+      (region === "bottom" && atBottom) ||
+      (region === "vertical" && dy > tol * 4) ||
+      (region === "horizontal" && dy <= tol)
+    ) {
+      out.push(e);
+    }
+  }
+  return out;
+}
+
+/** Resolve a semantic face region into a concrete face list (by face center vs bbox). */
+function facesInRegion(shape: Shape3D, region: FaceRegion) {
+  const { min, max } = shapeBounds(shape);
+  // axis index + whether we want the max or min extreme of that axis
+  const map = {
+    top: [1, max[1]], bottom: [1, min[1]],
+    right: [0, max[0]], left: [0, min[0]],
+    front: [2, max[2]], back: [2, min[2]],
+  } as const;
+  const [axis, target] = map[region];
+  const extent = Math.max(max[axis] - min[axis], 1);
+  const tol = Math.max(1e-3, 0.03 * extent);
+  const out = [];
+  for (const f of shape.faces) {
+    try {
+      const c = f.center.toTuple();
+      if (Math.abs(c[axis] - target) < tol) out.push(f);
+    } catch {
+      /* skip */
+    }
+  }
+  return out;
+}
+
 /** Match reference points to the body's nearest faces (by face center). */
 function matchFaces(shape: Shape3D, points: EdgePoint[]) {
   const faces = shape.faces;
@@ -222,6 +309,10 @@ export function rebuildBodies(features: Feature[]): Shape3D[] {
           const matched = matchEdges(target, f.edges);
           if (matched.length === 0) continue; // no edge matched — skip
           filt = (e) => e.inList(matched);
+        } else if (f.region && f.region !== "all") {
+          const matched = edgesInRegion(target, f.region as EdgeRegion);
+          if (matched.length === 0) continue; // region matched no edges — skip
+          filt = (e) => e.inList(matched);
         }
         bodies[last()] = f.type === "fillet" ? target.fillet(f.radius, filt) : target.chamfer(f.radius, filt);
       } catch {
@@ -231,9 +322,14 @@ export function rebuildBodies(features: Feature[]): Shape3D[] {
     }
 
     if (f.type === "shell") {
-      if (bodies.length === 0 || f.thickness <= 0 || !f.faces || f.faces.length === 0) continue;
+      if (bodies.length === 0 || f.thickness <= 0) continue;
       const target = bodies[last()];
-      const matched = matchFaces(target, f.faces);
+      const matched =
+        f.faces && f.faces.length
+          ? matchFaces(target, f.faces)
+          : f.region
+            ? facesInRegion(target, f.region as FaceRegion)
+            : [];
       if (matched.length === 0) continue;
       // OCC offset sign varies; try inward (negative) first, then positive.
       let shelled: Shape3D | null = null;

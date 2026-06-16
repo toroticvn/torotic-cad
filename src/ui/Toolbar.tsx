@@ -20,6 +20,7 @@ export function Toolbar() {
   const undo = useViewportStore((s) => s.undo);
   const redo = useViewportStore((s) => s.redo);
   const evaluateDrawing = useViewportStore((s) => s.evaluateDrawing);
+  const explainSelected = useViewportStore((s) => s.explainSelected);
   const openChat = useViewportStore((s) => s.openChat);
   const openAiDraw = useViewportStore((s) => s.openAiDraw);
   const askClaudeAi = useViewportStore((s) => s.askClaudeAi);
@@ -120,6 +121,9 @@ export function Toolbar() {
         </button>
         <button onClick={evaluateDrawing} disabled={features.length === 0} title="Nhờ AI đánh giá bản vẽ hiện tại">
           ✨ Đánh giá
+        </button>
+        <button onClick={explainSelected} disabled={mode !== "model" || !selectedId} title="Nhờ AI giải thích feature đang chọn trong cây tính năng">
+          🔍 Giải thích
         </button>
         <button onClick={askClaudeAi} disabled={features.length === 0} title="Tải ảnh + copy nội dung để hỏi trên claude.ai (dùng gói Pro/Max, miễn phí)">
           📋 Claude.ai

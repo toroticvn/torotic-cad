@@ -15,6 +15,7 @@ export interface DesignOp {
     | "hole"
     | "fillet"
     | "chamfer"
+    | "shell"
     | "polygon"
     | "regularPolygon"
     | "slot"
@@ -24,6 +25,11 @@ export interface DesignOp {
     | "patternLinear"
     | "patternCircular";
   op?: BoolOp;
+  /** fillet/chamfer: which edges to round when not picked (default all). */
+  edgeRegion?: "all" | "top" | "bottom" | "vertical" | "horizontal";
+  /** shell: which face to open (default top); thickness via `radius`/`depth`/`thickness`. */
+  faceRegion?: "top" | "bottom" | "front" | "back" | "left" | "right";
+  thickness?: number;
   plane?: PlaneId;
   offset?: number;
   x?: number;
@@ -254,7 +260,15 @@ export function designToFeatures(design: Design, opts?: { continueSolid?: boolea
 
     if (o.shape === "fillet" || o.shape === "chamfer") {
       if (!hasSolid) continue; // nothing to round yet
-      features.push({ id: id(o.shape), type: o.shape, name: `${o.shape === "fillet" ? "Fillet" : "Chamfer"}${n}`, radius: num(o.radius, 2) });
+      const region = (["all", "top", "bottom", "vertical", "horizontal"] as const).includes(o.edgeRegion as "all") ? o.edgeRegion : "all";
+      features.push({ id: id(o.shape), type: o.shape, name: `${o.shape === "fillet" ? "Fillet" : "Chamfer"}${n}`, radius: num(o.radius, 2), region });
+      continue;
+    }
+
+    if (o.shape === "shell") {
+      if (!hasSolid) continue; // nothing to hollow yet
+      const region = (["top", "bottom", "front", "back", "left", "right"] as const).includes(o.faceRegion as "top") ? o.faceRegion! : "top";
+      features.push({ id: id("shell"), type: "shell", name: `Shell${n}`, thickness: num(o.thickness ?? o.depth ?? o.radius, 2), region });
       continue;
     }
 

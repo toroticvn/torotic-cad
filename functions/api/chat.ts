@@ -52,6 +52,8 @@ Khi gọi apply_design:
 - Rãnh / lỗ ô-van: shape "slot" (length = khoảng 2 tâm, width = bề rộng, x, y, angle; cắt thì op="cut" + depth, làm lồi thì op khác + h).
 - Mặt bích nhiều lỗ (vòng lỗ bu-lông): vẽ đĩa bằng "cylinder" trước, rồi shape "boltCircle" (boltCircleDiameter = PCD, holeDiameter, count, depth) để khoét cả vòng lỗ một lần.
 - Lỗ bậc / lỗ chìm (chỗ bắt bu-lông): shape "hole" với holeType="counterbore" (kèm cboreDiameter, cboreDepth) hoặc "countersink" (kèm csinkDiameter, csinkAngle). LUÔN đặt topOffset = chiều cao mặt trên của khối để phần khoét nằm đúng mặt trên.
+- Bo tròn / vát cạnh theo VÙNG: shape "fillet" hoặc "chamfer" với "radius" + "edgeRegion" ∈ {all, top, bottom, vertical, horizontal} (mặc định all = bo hết). "top"=cạnh mặt trên, "bottom"=mặt dưới, "vertical"=cạnh đứng, "horizontal"=cạnh ngang. Vd "bo hết cạnh trên 3mm" → fillet radius 3 edgeRegion "top".
+- Khoét rỗng (shell, làm hộp/khay): shape "shell" với "thickness" (độ dày thành) + "faceRegion" ∈ {top, bottom, front, back, left, right} = mặt để hở (mặc định top). Vd "khoét rỗng dày 2mm" → shell thickness 2 faceRegion "top".
 - Gân tăng cứng (rib): dùng "polygon" tạo tiết diện tam giác/chữ nhật mỏng rồi đùn (op="add").
 - Ren xoắn THẬT (bu-lông, ti ren, vít): shape "thread" — ren NGOÀI dạng helix thật. Tham số: diameter (đường kính danh nghĩa, vd M10→10), pitch (bước ren; bỏ trống sẽ tự lấy bước thô theo đường kính), length (chiều dài ren), x, y (tâm), offset (toạ độ gốc theo trục ren), axis ∈ {x,y,z} (mặc định z). Ren luôn là MỘT KHỐI RIÊNG (multi-body): muốn làm bu-lông thì tạo đầu bu-lông (regularPolygon/cylinder) rồi đặt "thread" nối tiếp ngay sau, cho chồng nhẹ vào đầu. Lưu ý hạn chế hiện tại: chưa làm được REN TRONG (lỗ taro) — nếu cần ren trong thì dùng lỗ trơn và nói rõ.
 - Soi gương cả khối: shape "mirror", "mirrorPlane" ∈ {XY,XZ,YZ}, "merge" (true=gộp 1 khối, false=2 khối).
@@ -110,8 +112,11 @@ const APPLY_DESIGN_TOOL = {
         items: {
           type: "object",
           properties: {
-            shape: { type: "string", enum: ["box", "cylinder", "hole", "fillet", "chamfer", "polygon", "regularPolygon", "slot", "boltCircle", "thread", "mirror", "patternLinear", "patternCircular"] },
+            shape: { type: "string", enum: ["box", "cylinder", "hole", "fillet", "chamfer", "shell", "polygon", "regularPolygon", "slot", "boltCircle", "thread", "mirror", "patternLinear", "patternCircular"] },
             op: { type: "string", enum: ["new", "add", "cut"], description: "Phép boolean (box/cylinder/hole/polygon)" },
+            edgeRegion: { type: "string", enum: ["all", "top", "bottom", "vertical", "horizontal"], description: "fillet/chamfer: vùng cạnh cần xử lý (mặc định all)" },
+            faceRegion: { type: "string", enum: ["top", "bottom", "front", "back", "left", "right"], description: "shell: mặt để hở (mặc định top)" },
+            thickness: { type: "number", description: "shell: độ dày thành (mm)" },
             plane: { type: "string", enum: ["top", "front", "right"], description: "Mặt phẳng sketch (mặc định top)" },
             offset: { type: "number", description: "Dịch mặt phẳng theo phương đùn (mm)" },
             x: { type: "number", description: "Toạ độ tâm theo trục u (mm)" },

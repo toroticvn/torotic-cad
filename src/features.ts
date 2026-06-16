@@ -74,14 +74,26 @@ export interface SweepFeature {
 /** A 3D point lying on a selected edge (used by edge-specific fillet/chamfer). */
 export type EdgePoint = [number, number, number];
 
+/**
+ * A semantic edge region (resolved geometrically against the body's bounding box
+ * at rebuild). The model's "up" axis is +Y (sketches on the default "top" plane
+ * extrude along +Y). "all" = every edge. Lets the AI / user say "bo cạnh trên".
+ */
+export type EdgeRegion = "all" | "top" | "bottom" | "vertical" | "horizontal";
+
+/** A semantic face region for shell/draft (which face to open / taper). */
+export type FaceRegion = "top" | "bottom" | "front" | "back" | "left" | "right";
+
 /** Modifier features transform the running solid (no sketch of their own). */
 export interface FilletFeature {
   id: string;
   type: "fillet";
   name: string;
   radius: number;
-  /** Selected edges (by a point on each). Empty/undefined ⇒ all edges. */
+  /** Selected edges (by a point on each). Empty/undefined ⇒ use `region`/all. */
   edges?: EdgePoint[];
+  /** Semantic edge region when no explicit `edges` are picked (default all). */
+  region?: EdgeRegion;
 }
 export interface ChamferFeature {
   id: string;
@@ -89,6 +101,7 @@ export interface ChamferFeature {
   name: string;
   radius: number;
   edges?: EdgePoint[];
+  region?: EdgeRegion;
 }
 
 /**
@@ -169,6 +182,8 @@ export interface ShellFeature {
   thickness: number;
   /** Faces to remove (open), referenced by a point on each. */
   faces?: EdgePoint[];
+  /** Semantic open-face region when no explicit `faces` are picked (e.g. "top"). */
+  region?: FaceRegion;
 }
 
 /**

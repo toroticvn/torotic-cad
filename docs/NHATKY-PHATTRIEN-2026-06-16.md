@@ -38,12 +38,30 @@ Ví dụ:
 
 ---
 
+## 2b. Giải thích feature đang chọn (🔍)
+
+Nút **🔍 Giải thích** trên toolbar (bật khi đang ở Model mode + có feature được chọn) → `store.explainSelected()`: mở chat, gửi prompt nhờ Claude **giải thích feature đang chọn** (loại gì, ý nghĩa tham số, vai trò, gợi ý/DFM) và **CHỈ giải thích, không vẽ**. Tận dụng context selection vừa thêm (tên feature đang chọn đã được gửi sang `/api/chat`). Nếu chưa chọn gì → báo lỗi nhẹ trong chat.
+
+## 2c. Bo / vát / khoét theo VÙNG (mô tả lời)
+
+Trước đây fillet/chamfer chỉ "bo hết cạnh" hoặc phải **pick từng cạnh trong viewport**; shell phải pick mặt. Giờ AI làm theo **mô tả lời**:
+
+- `features.ts`: thêm `EdgeRegion` = {all, top, bottom, vertical, horizontal} cho `FilletFeature`/`ChamferFeature.region`; `FaceRegion` = {top, bottom, front, back, left, right} cho `ShellFeature.region`.
+- `rebuild.ts`: `edgesInRegion()` / `facesInRegion()` giải vùng bằng **hình học** (so sánh với bounding box `shapeBounds`), trả filter `inList`. Trục "lên" = **+Y** (sketch mặt `top` đùn theo +Y nên "trên/dưới" = mặt Y lớn/nhỏ nhất; "vertical" = cạnh trải dài theo Y; "horizontal" = cạnh Y gần như không đổi). fillet/chamfer ưu tiên `edges` (đã pick) → `region` → all; shell ưu tiên `faces` → `region`.
+- `design.ts`: thêm shape `"shell"` + trường `edgeRegion`/`faceRegion`/`thickness`; `designToFeatures` tạo `ShellFeature` (default open top) và gắn `region` cho fillet/chamfer (default all).
+- `chat.ts`: thêm `"shell"` vào enum shape + `edgeRegion`/`faceRegion`/`thickness` trong tool schema + hướng dẫn trong system prompt ("bo hết cạnh trên 3mm", "khoét rỗng dày 2mm").
+
+Test (trong `aiDesign.runtime.test.ts`, dùng part mặt `top` để Y là trục lên): fillet "all" vs "top" đổi hình học khác nhau (top bo ít cạnh hơn); shell mở mặt trên/dưới đều dựng 1 khối và khoét rỗng (nhiều đỉnh hơn khối đặc).
+
 ## 3. File đụng tới
-- `src/ai/design.ts` — `ModifyOp`, `Design.modify`, `applyModify`, `resizeSketch`.
+- `src/ai/design.ts` — `ModifyOp`, `Design.modify`, `applyModify`, `resizeSketch`; shape `"shell"` + `edgeRegion`/`faceRegion`/`thickness`.
 - `src/ai/api.ts` — `chat()` nhận thêm tham số `selected`, gửi trong body.
-- `src/state/store.ts` — `sendChat` áp `applyModify` + gửi tên feature đang chọn; import `applyModify`.
-- `functions/api/chat.ts` — `body.selected` → context; `modify` trong tool schema; hướng dẫn trong system prompt.
-- `src/ai/aiDesign.runtime.test.ts` — 5 case `modify` mới.
+- `src/state/store.ts` — `sendChat` áp `applyModify` + gửi tên feature đang chọn; `explainSelected`; import `applyModify`.
+- `src/features.ts` — `EdgeRegion`/`FaceRegion`; `region` trên Fillet/Chamfer/Shell.
+- `src/kernel/rebuild.ts` — `shapeBounds`/`edgesInRegion`/`facesInRegion`; fillet/chamfer/shell dùng region khi không pick.
+- `src/ui/Toolbar.tsx` — nút 🔍 Giải thích.
+- `functions/api/chat.ts` — `body.selected` → context; `modify` + `shell`/region trong tool schema; hướng dẫn trong system prompt.
+- `src/ai/aiDesign.runtime.test.ts` — 5 case `modify` + 6 case region (fillet top/all, shell top/bottom).
 
 ## 4. Kiểm thử
 `NODE_OPTIONS=--use-system-ca npm test` → **8/8 bộ ALL PASS**. Case modify mới: đổi chiều cao box, đổi Ø lỗ (resize sketch), nới rộng box, khớp theo id + bỏ qua target lạ, đổi bán kính fillet.
