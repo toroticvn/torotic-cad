@@ -17,13 +17,13 @@ export interface ChatReply {
  * server-side /api/chat function (Claude). The Anthropic key stays on the
  * server — the browser only talks to /api.
  */
-export async function chat(messages: ChatTurn[], image: string, features: Feature[]): Promise<ChatReply> {
+export async function chat(messages: ChatTurn[], image: string, features: Feature[], selected?: string | null): Promise<ChatReply> {
   let resp: Response;
   try {
     resp = await fetch("/api/chat", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ messages, image, features }),
+      body: JSON.stringify({ messages, image, features, selected: selected ?? null }),
     });
   } catch (e) {
     throw new Error("Không kết nối được máy chủ AI: " + (e as Error).message);

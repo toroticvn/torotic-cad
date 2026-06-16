@@ -1,6 +1,6 @@
 # Torotic CAD — Tổng quan trạng thái dự án
 
-> File này tóm tắt tình trạng dự án để đọc nhanh khi quay lại. Cập nhật lần cuối: **2026-06-13** (sau khi clone xong bộ công cụ Sketch Đợt 1–9).
+> File này tóm tắt tình trạng dự án để đọc nhanh khi quay lại. Cập nhật lần cuối: **2026-06-16** (Trợ lý AI sửa tham số feature có sẵn + biết feature đang chọn).
 
 ## 1. Dự án là gì
 **Torotic CAD** — web app CAD 3D tham số kiểu SolidWorks (sketch → ràng buộc → feature → khối B-rep → cây tính năng). Thư mục: `c:\Users\Admin\Desktop\Code3DCad`.
@@ -18,6 +18,8 @@
 Backend = **Cloudflare Pages Functions** (`functions/api/*.ts`), gọi Claude `claude-opus-4-8`. Có 3 nút trên thanh công cụ + 1 nút thủ công:
 - **💬 Trợ lý AI (agentic)** (`/api/chat`) — **vừa tư vấn vừa TỰ VẼ/TỰ SỬA**. Claude có công cụ `apply_design` (tool use, `tool_choice` auto): hỏi → trả lời/hướng dẫn; bảo "vẽ…/khoan lỗ…/thêm trụ…" → tự dựng ngay trong app kèm giải thích. AI thấy ảnh viewport + cây tính năng mỗi lượt.
   - Chế độ **append** (vẽ tiếp): nếu đã có khối, design mới được nối vào cây hiện tại (op đầu thành add/cut thay vì new). Xem `designToFeatures(design, { continueSolid, nameStart })` + `sendChat` trong store.
+  - **Sửa tham số (parametric `modify`) — mới 2026-06-16:** thay vì xoá-dựng-lại, AI sửa thẳng số đo của feature đã có qua mảng `modify[]` (`{ target: tên/id feature, … }`): extrude `distance/height`, lỗ/trụ `diameter`, hộp `width`/`depth` (tự resize sketch tiết diện), fillet/chamfer `radius`, revolve/draft `angle`, thread `diameter`/`pitch`/`length`, shell `thickness`, pattern `count`/`dx`/`dy`/`dz`/`angle`/`axis`. Hàm thuần `applyModify(features, modify)` trong `src/ai/design.ts` (`resizeSketch`: đường tròn → r=Ø/2, chữ nhật → scale bbox quanh tâm). System prompt dạy AI **ưu tiên `modify`** khi chỉ đổi số đo; chỉ xoá-dựng-lại khi đổi KIỂU hình.
+  - **Biết feature đang chọn:** store gửi TÊN feature đang chọn sang `/api/chat` (`chat(messages, image, features, selected)`) → AI hiểu "cái này"/"feature này" là feature đó.
   - **Hình vẽ được:** box, cylinder, hole (**simple / counterbore lỗ bậc / countersink lỗ chìm** — `holeType` + topOffset), fillet, chamfer, **polygon (biên dạng tự do theo [x,y])**, **regularPolygon (lục giác/bát giác — đai ốc, đầu bu-lông)**, **slot (rãnh / lỗ ô-van)**, **boltCircle (mặt bích nhiều lỗ trên PCD)**, **mirror (cả khối, có merge)**, **patternLinear / patternCircular**. Gân tăng cứng = polygon mỏng; ren = tạm coi lỗ trơn. Có thể **xoá feature** qua mảng `delete` (theo tên/id, để "đổi kích thước" = xoá + dựng lại).
 - **🪄 AI vẽ** (`/api/generate`, tool use ép buộc) — hộp thoại mô tả 1 lần → dựng khối mới (đường tắt; chat làm được nhiều hơn).
 - **✨ Đánh giá** — gửi câu hỏi đánh giá vào chat.

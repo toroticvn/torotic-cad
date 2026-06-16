@@ -69,6 +69,40 @@ export interface DesignOp {
   axis?: "x" | "y" | "z";
 }
 
+/**
+ * A parametric edit of an EXISTING feature (true parametric editing — change a
+ * number and the tree rebuilds, no delete + redraw). `target` is a feature id or
+ * name from the current tree; only the fields relevant to the matched feature
+ * type are applied.
+ */
+export interface ModifyOp {
+  target: string;
+  /** extrude: extrusion height/depth (alias `height`). */
+  distance?: number;
+  height?: number;
+  /** fillet/chamfer: radius. */
+  radius?: number;
+  /** extrude on a circle sketch (hole/cylinder) → new circle diameter; thread → major diameter. */
+  diameter?: number;
+  /** extrude on a rectangle sketch (box) → new width (along u) / depth (along v). */
+  width?: number;
+  depth?: number;
+  /** revolve sweep angle / draft angle / circular-pattern total angle (degrees). */
+  angle?: number;
+  /** pattern copy count. */
+  count?: number;
+  dx?: number;
+  dy?: number;
+  dz?: number;
+  /** thread: pitch / threaded length. */
+  pitch?: number;
+  length?: number;
+  /** shell wall thickness. */
+  thickness?: number;
+  /** circular pattern axis. */
+  axis?: "x" | "y" | "z";
+}
+
 export interface Design {
   name?: string;
   /** "replace" = start a fresh model; "append" = add onto the current model. */
@@ -76,6 +110,8 @@ export interface Design {
   operations: DesignOp[];
   /** Feature ids or names to remove first (only meaningful in append mode). */
   delete?: string[];
+  /** Parametric edits of existing features (ignored in replace mode). */
+  modify?: ModifyOp[];
 }
 
 // Local id generator (avoids importing the store → circular dependency).
@@ -339,4 +375,105 @@ export function designToFeatures(design: Design, opts?: { continueSolid?: boolea
   }
 
   return features;
+}
+
+const fin = (v: number | undefined): number | undefined =>
+  typeof v === "number" && isFinite(v) ? v : undefined;
+
+/** Resize an AI-style sketch (returns a clone): circle radius from `diameter`,
+ * rectangle bbox scaled to `width`/`depth` about its centre. */
+function resizeSketch(sketch: ParametricSketch, m: ModifyOp): ParametricSketch | null {
+  const s: ParametricSketch = structuredClone(sketch);
+  let changed = false;
+
+  const dia = fin(m.diameter);
+  if (dia !== undefined && s.circles.length) {
+    const r = Math.abs(dia) / 2 || 0.5;
+    for (const c of s.circles) c.r = r;
+    changed = true;
+  }
+
+  const w = fin(m.width);
+  const d = fin(m.depth);
+  if ((w !== undefined || d !== undefined) && s.points.length) {
+    const xs = s.points.map((p) => p.x);
+    const ys = s.points.map((p) => p.y);
+    const minX = Math.min(...xs), maxX = Math.max(...xs);
+    const minY = Math.min(...ys), maxY = Math.max(...ys);
+    const cx = (minX + maxX) / 2, cy = (minY + maxY) / 2;
+    const curW = maxX - minX, curD = maxY - minY;
+    const sx = w !== undefined && curW > 1e-6 ? Math.abs(w) / curW : 1;
+    const sy = d !== undefined && curD > 1e-6 ? Math.abs(d) / curD : 1;
+    if (sx !== 1 || sy !== 1) {
+      for (const p of s.points) {
+        p.x = cx + (p.x - cx) * sx;
+        p.y = cy + (p.y - cy) * sy;
+      }
+      changed = true;
+    }
+  }
+
+  return changed ? s : null;
+}
+
+/**
+ * Apply parametric edits to an existing feature tree. Matches each ModifyOp's
+ * `target` against a feature id/name (case-insensitive) and patches the scalar
+ * params that make sense for that feature type (extrude height, fillet radius,
+ * thread pitch, pattern count, …). For an extrude it can also resize the sketch
+ * it consumes (hole/cylinder diameter, box width/depth). Returns a new feature
+ * array (changed features cloned) plus how many edits landed.
+ */
+export function applyModify(features: Feature[], modifies: ModifyOp[] | undefined): { features: Feature[]; applied: number } {
+  if (!Array.isArray(modifies) || modifies.length === 0) return { features, applied: 0 };
+  const out: Feature[] = features.slice();
+  let applied = 0;
+
+  for (const m of modifies) {
+    if (!m || !m.target) continue;
+    const t = String(m.target).toLowerCase();
+    const idx = out.findIndex((f) => f.id.toLowerCase() === t || f.name.toLowerCase() === t);
+    if (idx < 0) continue;
+    const patched = { ...out[idx] } as Feature;
+    let changed = false;
+
+    if (patched.type === "extrude") {
+      const dist = fin(m.distance ?? m.height);
+      if (dist !== undefined) { patched.distance = dist; changed = true; }
+      if (m.diameter !== undefined || m.width !== undefined || m.depth !== undefined) {
+        const si = out.findIndex((g) => g.type === "sketch" && g.id === patched.sketchId);
+        if (si >= 0) {
+          const sk = resizeSketch((out[si] as SketchFeature).sketch, m);
+          if (sk) { out[si] = { ...(out[si] as SketchFeature), sketch: sk }; changed = true; }
+        }
+      }
+    } else if (patched.type === "revolve") {
+      const a = fin(m.angle);
+      if (a !== undefined) { patched.angle = a; changed = true; }
+    } else if (patched.type === "fillet" || patched.type === "chamfer") {
+      const r = fin(m.radius);
+      if (r !== undefined) { patched.radius = Math.abs(r); changed = true; }
+    } else if (patched.type === "thread") {
+      const dia = fin(m.diameter); if (dia !== undefined) { patched.diameter = Math.abs(dia); changed = true; }
+      const p = fin(m.pitch); if (p !== undefined) { patched.pitch = Math.abs(p); changed = true; }
+      const l = fin(m.length); if (l !== undefined) { patched.length = Math.abs(l); changed = true; }
+    } else if (patched.type === "shell") {
+      const th = fin(m.thickness); if (th !== undefined) { patched.thickness = Math.abs(th); changed = true; }
+    } else if (patched.type === "draft") {
+      const a = fin(m.angle); if (a !== undefined) { patched.angle = a; changed = true; }
+    } else if (patched.type === "patternLinear" || patched.type === "featPatternLinear") {
+      const c = fin(m.count); if (c !== undefined) { patched.count = Math.max(2, Math.round(c)); changed = true; }
+      const dx = fin(m.dx); if (dx !== undefined) { patched.dx = dx; changed = true; }
+      const dy = fin(m.dy); if (dy !== undefined) { patched.dy = dy; changed = true; }
+      const dz = fin(m.dz); if (dz !== undefined) { patched.dz = dz; changed = true; }
+    } else if (patched.type === "patternCircular" || patched.type === "featPatternCircular") {
+      const c = fin(m.count); if (c !== undefined) { patched.count = Math.max(2, Math.round(c)); changed = true; }
+      const a = fin(m.angle); if (a !== undefined) { patched.angle = a; changed = true; }
+      if (m.axis && (["x", "y", "z"] as const).includes(m.axis)) { patched.axis = m.axis; changed = true; }
+    }
+
+    if (changed) { out[idx] = patched; applied++; }
+  }
+
+  return { features: out, applied };
 }

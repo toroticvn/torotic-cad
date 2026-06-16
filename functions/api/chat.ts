@@ -30,6 +30,7 @@ interface ChatBody {
   messages?: ChatTurn[];
   image?: string; // PNG data URL of the current viewport
   features?: unknown; // current feature tree
+  selected?: string | null; // name of the feature the user currently has selected
 }
 
 const MODEL = "claude-opus-4-8";
@@ -55,7 +56,12 @@ Khi gọi apply_design:
 - Ren xoắn THẬT (bu-lông, ti ren, vít): shape "thread" — ren NGOÀI dạng helix thật. Tham số: diameter (đường kính danh nghĩa, vd M10→10), pitch (bước ren; bỏ trống sẽ tự lấy bước thô theo đường kính), length (chiều dài ren), x, y (tâm), offset (toạ độ gốc theo trục ren), axis ∈ {x,y,z} (mặc định z). Ren luôn là MỘT KHỐI RIÊNG (multi-body): muốn làm bu-lông thì tạo đầu bu-lông (regularPolygon/cylinder) rồi đặt "thread" nối tiếp ngay sau, cho chồng nhẹ vào đầu. Lưu ý hạn chế hiện tại: chưa làm được REN TRONG (lỗ taro) — nếu cần ren trong thì dùng lỗ trơn và nói rõ.
 - Soi gương cả khối: shape "mirror", "mirrorPlane" ∈ {XY,XZ,YZ}, "merge" (true=gộp 1 khối, false=2 khối).
 - Lặp khối: "patternLinear" (count, dx,dy,dz) hoặc "patternCircular" (count, totalAngle, axis ∈ {x,y,z}).
-- Để SỬA/XOÁ: nếu cần bỏ feature cũ, đặt tên/id của chúng vào mảng "delete" (lấy từ feature_tree). Muốn đổi kích thước một feature thì xoá nó rồi dựng lại bằng số mới.
+- ĐỔI KÍCH THƯỚC/THAM SỐ (ưu tiên cách này — sửa tham số, KHÔNG xoá rồi dựng lại): dùng mảng "modify" (mode="append"). Mỗi phần tử có "target" = tên/id feature trong feature_tree + các trường cần đổi:
+  · extrude (box/cylinder/hole/profile): distance (chiều cao/sâu đùn); với lỗ/trụ thì diameter (đường kính mới); với hộp thì width/depth (kích thước tiết diện).
+  · fillet/chamfer: radius. · revolve/draft: angle. · thread: diameter/pitch/length. · shell: thickness.
+  · pattern: count, dx/dy/dz (thẳng), angle/axis (tròn).
+  Ví dụ: "đổi đường kính lỗ thành 12" → modify:[{target:"Hole1", diameter:12}]; "làm tấm cao 20" → modify:[{target:"Box1", distance:20}]; "bo góc to hơn 5" → modify:[{target:"Fillet1", radius:5}].
+- XOÁ feature: đặt tên/id vào mảng "delete" (lấy từ feature_tree). Chỉ xoá-rồi-dựng-lại khi cần đổi KIỂU hình (vd hộp→trụ); đổi số đo thì dùng "modify".
 - Suy luận hợp lý kích thước/vị trí còn thiếu. LUÔN kèm một đoạn text ngắn (tiếng Việt) giải thích các bước bạn vừa dựng.
 
 Trả lời bằng tiếng Việt, ngắn gọn, chính xác, dùng markdown khi hợp lý. Không bịa số đo không có trong dữ liệu; nếu thiếu, nêu rõ giả định.`;
@@ -73,6 +79,30 @@ const APPLY_DESIGN_TOOL = {
         type: "array",
         description: "Tên hoặc id các feature cần xoá trước (lấy từ feature_tree). Chỉ dùng với append.",
         items: { type: "string" },
+      },
+      modify: {
+        type: "array",
+        description: "Sửa THAM SỐ feature đã có (đổi kích thước parametric, không xoá-dựng-lại). Chỉ dùng với append.",
+        items: {
+          type: "object",
+          properties: {
+            target: { type: "string", description: "Tên hoặc id feature cần sửa (lấy từ feature_tree)" },
+            distance: { type: "number", description: "extrude: chiều cao/sâu đùn mới (mm)" },
+            height: { type: "number", description: "extrude: alias của distance (mm)" },
+            radius: { type: "number", description: "fillet/chamfer: bán kính mới (mm)" },
+            diameter: { type: "number", description: "lỗ/trụ: đường kính mới (mm); thread: đường kính danh nghĩa" },
+            width: { type: "number", description: "hộp: bề rộng tiết diện theo u (mm)" },
+            depth: { type: "number", description: "hộp: chiều sâu tiết diện theo v (mm)" },
+            angle: { type: "number", description: "revolve/draft/pattern tròn: góc (độ)" },
+            count: { type: "number", description: "pattern: số bản" },
+            dx: { type: "number" }, dy: { type: "number" }, dz: { type: "number" },
+            pitch: { type: "number", description: "thread: bước ren (mm)" },
+            length: { type: "number", description: "thread: chiều dài ren (mm)" },
+            thickness: { type: "number", description: "shell: độ dày thành (mm)" },
+            axis: { type: "string", enum: ["x", "y", "z"], description: "pattern tròn: trục quay" },
+          },
+          required: ["target"],
+        },
       },
       operations: {
         type: "array",
@@ -166,7 +196,11 @@ export const onRequestPost = async (context: { request: Request; env: Env }): Pr
 
   const img = parseDataUrl(body.image);
   const featuresJson = JSON.stringify(body.features ?? [], null, 2);
-  const contextNote = `\n\n---\n(Bối cảnh hệ thống — cây tính năng hiện tại của mô hình:)\n<feature_tree>\n${featuresJson}\n</feature_tree>`;
+  const selectedNote =
+    typeof body.selected === "string" && body.selected.trim()
+      ? `\n(Feature người dùng đang CHỌN: "${body.selected}". Nếu họ nói "cái này"/"feature này" thì hiểu là feature đó.)`
+      : "";
+  const contextNote = `\n\n---\n(Bối cảnh hệ thống — cây tính năng hiện tại của mô hình:)\n<feature_tree>\n${featuresJson}\n</feature_tree>${selectedNote}`;
 
   // Find the last user turn so we can attach the current image + feature tree to it.
   let lastUser = -1;

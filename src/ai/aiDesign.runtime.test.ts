@@ -4,8 +4,18 @@
 // the kernel without needing a live Claude call.
 import { loadOC } from "../kernel/loadOC";
 import { rebuildSolids } from "../kernel/rebuild";
-import { designToFeatures, type Design } from "./design";
+import { designToFeatures, applyModify, type Design } from "./design";
 import { producesSolid, type Feature } from "../features";
+
+const bbox = (m: { positions: number[] }) => {
+  let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity, minZ = Infinity, maxZ = -Infinity;
+  for (let i = 0; i < m.positions.length; i += 3) {
+    minX = Math.min(minX, m.positions[i]); maxX = Math.max(maxX, m.positions[i]);
+    minY = Math.min(minY, m.positions[i + 1]); maxY = Math.max(maxY, m.positions[i + 1]);
+    minZ = Math.min(minZ, m.positions[i + 2]); maxZ = Math.max(maxZ, m.positions[i + 2]);
+  }
+  return { dx: maxX - minX, dy: maxY - minY, dz: maxZ - minZ };
+};
 
 let failures = 0;
 const check = (name: string, cond: boolean, detail = "") => {
@@ -122,6 +132,45 @@ async function main() {
   const csink = rebuildSolids([...plateBase, ...designToFeatures({ mode: "append", operations: [{ shape: "hole", x: 20, y: 0, diameter: 8, depth: 40, holeType: "countersink", csinkDiameter: 16, csinkAngle: 90, topOffset: plateH }] }, { continueSolid: true })]);
   check("countersink builds one body", csink.length === 1 && csink[0].indices.length > 0, `bodies=${csink.length}`);
   check("countersink differs from a plain hole", (csink[0]?.positions.length ?? 0) !== plainVerts, `plain=${plainVerts} csink=${csink[0]?.positions.length}`);
+
+  console.log("Modify: parametric edits of existing features:");
+  // Plate (top plane → extrude up, so height is along Z=dz) with a hole.
+  const mPlate = designToFeatures({ operations: [{ shape: "box", w: 80, d: 40, h: 10 }] });
+  const mHole = designToFeatures({ mode: "append", operations: [{ shape: "hole", x: 0, y: 0, diameter: 8, depth: 30 }] }, { continueSolid: true });
+  const mTree = [...mPlate, ...mHole];
+  const beforeBox = rebuildSolids(mTree);
+  const beforeBB = bbox(beforeBox[0]);
+
+  // 1) Taller plate: modify the box extrude distance 10 → 25. The "top" plane
+  // extrudes along Y, so the extrude height shows up as the bbox dy.
+  const tallTree = applyModify(mTree, [{ target: "Box1", distance: 25 }]);
+  check("modify distance applied to one feature", tallTree.applied === 1, `applied=${tallTree.applied}`);
+  const tallBB = bbox(rebuildSolids(tallTree.features)[0]);
+  check("box got taller (height 10 → 25)", Math.abs(tallBB.dy - 25) < 0.5 && tallBB.dy > beforeBB.dy + 10, `dy=${tallBB.dy.toFixed(2)}`);
+
+  // 2) Bigger hole: modify the hole's circle diameter 8 → 20 (resizes the sketch).
+  // A cylindrical cut has the same triangle count regardless of radius, so verify
+  // the sketch radius actually changed and the solid still builds.
+  const bigHole = applyModify(mTree, [{ target: "Hole1", diameter: 20 }]);
+  check("modify diameter applied", bigHole.applied === 1, `applied=${bigHole.applied}`);
+  const holeSketch = bigHole.features.find((f) => f.type === "sketch" && f.sketch.circles.length);
+  const newR = holeSketch?.type === "sketch" ? holeSketch.sketch.circles[0]?.r : undefined;
+  check("hole sketch radius updated 4 → 10", newR === 10, `r=${newR}`);
+  check("bigger hole still builds one body", rebuildSolids(bigHole.features).length === 1);
+
+  // 3) Wider box: width 80 → 120 along u (X).
+  const wideBB = bbox(rebuildSolids(applyModify(mTree, [{ target: "Box1", width: 120 }]).features)[0]);
+  check("box got wider (dx 80 → 120)", Math.abs(wideBB.dx - 120) < 0.5, `dx=${wideBB.dx.toFixed(2)}`);
+
+  // 4) Match by id, and a no-op target is ignored.
+  const byId = applyModify(mTree, [{ target: mPlate[1].id, distance: 15 }, { target: "DoesNotExist", distance: 99 }]);
+  check("modify matches by id, ignores unknown target", byId.applied === 1, `applied=${byId.applied}`);
+
+  // 5) Fillet radius edit lands on the fillet feature.
+  const filTree = [...mPlate, ...designToFeatures({ mode: "append", operations: [{ shape: "fillet", radius: 2 }] }, { continueSolid: true })];
+  const filMod = applyModify(filTree, [{ target: "Fillet1", radius: 4 }]);
+  const fil = filMod.features.find((f) => f.type === "fillet");
+  check("fillet radius modified 2 → 4", filMod.applied === 1 && fil?.type === "fillet" && fil.radius === 4, `r=${fil && fil.type === "fillet" ? fil.radius : "?"}`);
 
   console.log("Pure: delete-target matching (by name) filters the tree:");
   const tree = designToFeatures({ operations: [{ shape: "box", w: 40, d: 40, h: 10 }] });

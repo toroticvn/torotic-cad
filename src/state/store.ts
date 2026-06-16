@@ -16,7 +16,7 @@ import { resolvePlane } from "../sketch/SketchPlane";
 import { findRegions } from "../kernel/profile";
 import { chat as chatRequest, generateDesign as requestDesign, type ChatTurn } from "../ai/api";
 import { buildClaudePrompt } from "../ai/prompt";
-import { designToFeatures } from "../ai/design";
+import { designToFeatures, applyModify } from "../ai/design";
 import {
   cloneEntities,
   relId,
@@ -343,7 +343,9 @@ export const useViewportStore = create<AppState>((set, get) => ({
     set({ chatOpen: true, chatMessages: messages, chatBusy: true, chatError: null });
     try {
       const image = vp.captureImage(1024);
-      const reply = await chatRequest(messages, image, get().features);
+      const selId = get().selectedFeatureId;
+      const selName = selId ? (get().features.find((f) => f.id === selId)?.name ?? null) : null;
+      const reply = await chatRequest(messages, image, get().features, selName);
       let text = reply.text;
 
       // The assistant chose to draw/modify — apply its design to the model.
@@ -362,8 +364,16 @@ export const useViewportStore = create<AppState>((set, get) => ({
           base = kept;
         }
 
+        // Parametric edits of existing features (change a number → rebuild, not delete+redraw).
+        let modified = 0;
+        if (append && Array.isArray(d.modify) && d.modify.length) {
+          const res = applyModify(base, d.modify);
+          base = res.features;
+          modified = res.applied;
+        }
+
         const newFeats = designToFeatures(d, { continueSolid: append && base.some(producesSolid), nameStart: append ? base.length : 0 });
-        const willApply = append ? newFeats.length > 0 || removed > 0 : newFeats.length > 0;
+        const willApply = append ? newFeats.length > 0 || removed > 0 || modified > 0 : newFeats.length > 0;
         if (willApply) {
           pushHistory(get, set);
           const features = append ? [...base, ...newFeats] : newFeats;
@@ -372,6 +382,7 @@ export const useViewportStore = create<AppState>((set, get) => ({
             await rebuild(get, set);
             const parts: string[] = [];
             if (removed > 0) parts.push(`xoá ${removed} feature`);
+            if (modified > 0) parts.push(`sửa ${modified} feature`);
             if (newFeats.length > 0) parts.push(`${append ? "vẽ tiếp" : "dựng"} ${newFeats.length} bước`);
             text += `\n\n✅ *Đã ${parts.join(", ")} trong phần mềm.*`;
           } catch {
