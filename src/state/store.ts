@@ -17,6 +17,8 @@ import { findRegions } from "../kernel/profile";
 import { chat as chatRequest, generateDesign as requestDesign, type ChatTurn } from "../ai/api";
 import { buildClaudePrompt } from "../ai/prompt";
 import { designToFeatures, applyModify } from "../ai/design";
+import { textSketch } from "../sketch/text";
+import { ensureFont } from "../fonts/loadFont";
 import {
   cloneEntities,
   relId,
@@ -218,6 +220,8 @@ interface AppState {
   addBodyOp: (kind: "mirrorBody" | "patternLinear" | "patternCircular") => void;
   /** Add a real helical thread (external) as its own body. */
   addThread: () => void;
+  /** Build an embossed/standalone text profile (loads the font), extruded `depth` mm. */
+  addText: (text: string, sizeMm: number, depth: number) => Promise<void>;
   /** Add a reference datum plane (parallel to a standard plane, offset). */
   addRefPlane: () => void;
   /** Pattern a single feature (the given extrude/revolve) linearly or circularly. */
@@ -353,6 +357,14 @@ export const useViewportStore = create<AppState>((set, get) => ({
       // The assistant chose to draw/modify — apply its design to the model.
       if (reply.design) {
         const d = reply.design;
+        // Text ops need the font loaded before designToFeatures (which is sync).
+        if (Array.isArray(d.operations) && d.operations.some((o) => o.shape === "text")) {
+          try {
+            await ensureFont();
+          } catch {
+            /* font failed → text ops produce no sketch and are skipped */
+          }
+        }
         const append = d.mode !== "replace" && get().features.some(producesSolid);
 
         // In append mode the assistant may ask to remove existing features first
@@ -716,6 +728,29 @@ export const useViewportStore = create<AppState>((set, get) => ({
     };
     set((s) => ({ features: [...s.features, f], selectedFeatureId: f.id }));
     void rebuild(get, set);
+  },
+
+  addText: async (text, sizeMm, depth) => {
+    const str = text.trim();
+    if (!str) return;
+    try {
+      await ensureFont();
+    } catch (e) {
+      set({ featureError: (e as Error).message });
+      return;
+    }
+    const sk = textSketch(str, sizeMm || 10, "top", 0, 0, 0);
+    if (!sk) {
+      set({ featureError: "Không tạo được biên dạng chữ (chuỗi rỗng hoặc font lỗi)." });
+      return;
+    }
+    pushHistory(get, set);
+    const n = get().features.filter((f) => f.type === "extrude" && f.name.startsWith("Text")).length + 1;
+    const sf: Feature = { id: uid("sketch"), type: "sketch", name: `TextSketch${n}`, sketch: sk };
+    const hasSolid = get().features.some(producesSolid);
+    const ex: Feature = { id: uid("extrude"), type: "extrude", name: `Text${n}`, sketchId: sf.id, distance: Math.abs(depth) || 5, operation: hasSolid ? "add" : "new" };
+    set((s) => ({ features: [...s.features, sf, ex], selectedFeatureId: ex.id, mode: "model", sketch: null }));
+    await rebuild(get, set);
   },
 
   addRefPlane: () => {

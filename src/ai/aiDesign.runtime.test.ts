@@ -2,9 +2,12 @@
 // tree -> rebuildable solid, for both "replace" (new model) and "append" (draw
 // onto the current model). Proves the assistant's drawing works end to end in
 // the kernel without needing a live Claude call.
+import { readFileSync } from "node:fs";
+import * as opentype from "opentype.js";
 import { loadOC } from "../kernel/loadOC";
 import { rebuildSolids } from "../kernel/rebuild";
 import { designToFeatures, applyModify, type Design } from "./design";
+import { setFont } from "../sketch/text";
 import { producesSolid, type Feature } from "../features";
 
 const bbox = (m: { positions: number[] }) => {
@@ -180,6 +183,21 @@ async function main() {
   // Partial revolve (a 180° half) about the v-axis still builds a body.
   const half = rebuildSolids(designToFeatures({ operations: [{ shape: "revolve", revolveAxis: "v", totalAngle: 180, points: [[0, 0], [8, 0], [8, 30], [0, 30]] }] }));
   check("revolve (partial 180°) builds one body", half.length === 1 && half[0].indices.length > 0, `bodies=${half.length}`);
+
+  console.log("Text: glyph outlines (with holes) → profile → extrude:");
+  const ttf = readFileSync("src/fonts/Roboto-Regular.ttf");
+  // opentype.js is CJS — under tsx the parse fn may sit on `.default`.
+  const ot = opentype as unknown as { parse?: typeof opentype.parse; default?: { parse: typeof opentype.parse } };
+  const parseFont = ot.parse ?? ot.default?.parse;
+  if (!parseFont) throw new Error("opentype parse not found");
+  setFont(parseFont(ttf.buffer.slice(ttf.byteOffset, ttf.byteOffset + ttf.byteLength)));
+  // "Aó" exercises inner contours (A counter, o counter) + a Vietnamese accent.
+  const textSolid = rebuildSolids(designToFeatures({ operations: [{ shape: "text", text: "Aó", fontSize: 20, h: 4 }] }));
+  check("text builds a valid body", textSolid.length >= 1 && textSolid[0].indices.length > 0, `bodies=${textSolid.length} tris=${textSolid[0]?.indices.length}`);
+  // Emboss text onto a plate (append, op add) → one combined body.
+  const plateForText = designToFeatures({ operations: [{ shape: "box", w: 80, d: 30, h: 6 }] });
+  const embossed = rebuildSolids([...plateForText, ...designToFeatures({ mode: "append", operations: [{ shape: "text", text: "OK", fontSize: 12, h: 2, offset: 6, op: "add" }] }, { continueSolid: true })]);
+  check("embossed text on a plate builds a body", embossed.length >= 1 && embossed[0].indices.length > 0, `bodies=${embossed.length}`);
 
   console.log("Sweep: round tube along an L-shaped path:");
   const tube = rebuildSolids(designToFeatures({ operations: [{ shape: "sweep", profileDiameter: 10, pathPoints: [[0, 0], [-40, 0], [-40, 30]] }] }));

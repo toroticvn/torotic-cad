@@ -13,6 +13,7 @@ export function Toolbar() {
   const startDraft = useViewportStore((s) => s.startDraft);
   const addBodyOp = useViewportStore((s) => s.addBodyOp);
   const addThread = useViewportStore((s) => s.addThread);
+  const addText = useViewportStore((s) => s.addText);
   const addRefPlane = useViewportStore((s) => s.addRefPlane);
   const exportModel = useViewportStore((s) => s.exportModel);
   const saveProject = useViewportStore((s) => s.saveProject);
@@ -51,6 +52,14 @@ export function Toolbar() {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, []);
+
+  const onAddText = () => {
+    const text = window.prompt("Nội dung chữ cần khắc/đắp:", "TOROTIC");
+    if (text == null || !text.trim()) return;
+    const size = parseFloat(window.prompt("Cỡ chữ (mm):", "10") ?? "10") || 10;
+    const depth = parseFloat(window.prompt("Độ dày đùn (mm):", "2") ?? "2") || 2;
+    void addText(text, size, depth);
+  };
 
   const onOpenFile = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -96,6 +105,7 @@ export function Toolbar() {
 
       <div className="tool-group">
         <button onClick={addThread} title="Ren xoắn ngoài (helix thật) — tạo thành khối ren riêng">🌀 Ren</button>
+        <button onClick={onAddText} title="Khắc/đắp chữ — chuyển chữ thành biên dạng rồi đùn">🔤 Text</button>
         <button onClick={addRefPlane} title="Tạo mặt phẳng tham chiếu (datum) để vẽ sketch trên đó">▭ Mặt phẳng</button>
       </div>
 

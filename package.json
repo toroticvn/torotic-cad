@@ -12,6 +12,7 @@
     "test:mirror": "tsx src/sketch/mirrorSketch.test.ts && tsx src/kernel/mirror.runtime.test.ts"
   },
   "dependencies": {
+    "opentype.js": "^2.0.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "replicad": "^0.23.1",
@@ -20,6 +21,7 @@
     "zustand": "^5.0.0"
   },
   "devDependencies": {
+    "@types/opentype.js": "^1.3.10",
     "@types/react": "^18.3.12",
     "@types/react-dom": "^18.3.1",
     "@types/three": "^0.169.0",

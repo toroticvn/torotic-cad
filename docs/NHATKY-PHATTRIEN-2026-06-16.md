@@ -68,6 +68,17 @@ Trước đây AI không tạo được khối tròn xoay (trục, chốt, bạc
 - `chat.ts`: thêm `"sweep"`/`"loft"` vào enum + `profileDiameter`/`pathPoints`/`loftSections` trong tool schema + hướng dẫn (vd ống Ø10 chữ L; ống Ø40→Ø16 cao 50).
 - Test: sweep ống Ø10 theo path chữ L; loft Ø40→Ø16; loft vuông→tròn — đều 1 body.
 
+## 2f. Text → biên dạng đùn (khắc/đắp chữ)
+
+Tính năng đã hoãn từ trước (cần font + test mắt). Kiến trúc tách để **Node test được**:
+- **Dependency:** `opentype.js` 2.0 + `@types/opentype.js`. Lưu ý: opentype 2.0 là CJS, dưới tsx phải lấy `parse` qua `.default` (đã xử lý trong test); browser/Vite dùng named `parse` từ bản mjs.
+- **Font:** `src/fonts/Roboto-Regular.ttf` (Apache 2.0, có dấu tiếng Việt) — tải bằng PowerShell (`Invoke-WebRequest`, vì Node lỗi SSL trên máy này). Ghi chú license ở `src/fonts/README.md`.
+- **Lõi thuần:** `src/sketch/text.ts` — `setFont(font)` + `textContours(text,size)` (tessellate Q/C Bézier → đoạn, lật trục Y lên) + `textSketch(...)` (dựng points/lines từng contour, dedupe điểm trùng, canh giữa). KHÔNG import `?url` nên Node test chạy. Holes trong chữ do `findRegions2D`/`profile.ts` tự phân loại (nesting theo diện tích) → khắc/đắp đều đúng.
+- **Glue trình duyệt:** `src/fonts/loadFont.ts` — `ensureFont()` fetch .ttf (Vite `?url`) → `opentype.parse` → `setFont`. Nạp 1 lần, await lại an toàn.
+- **AI:** shape `"text"` (`text`, `fontSize`, `h`, x/y; mặc định đắp nổi op add/new; op cut = khắc chìm, cần offset = mặt trên + tự `flip`). `store.sendChat` `await ensureFont()` trước `designToFeatures` (vốn sync) nếu có op text.
+- **Thủ công:** nút 🔤 Text trên Toolbar → `store.addText(text,size,depth)` (prompt nội dung/cỡ/độ dày). Chạy **offline** (không cần backend AI) — tiện test mắt geometry.
+- **Test:** "Aó" (có lỗ + dấu) dựng body hợp lệ; đắp chữ "OK" lên tấm → 1 body.
+
 ## 3. File đụng tới
 - `src/ai/design.ts` — `ModifyOp`, `Design.modify`, `applyModify`, `resizeSketch`; shape `"shell"` + `edgeRegion`/`faceRegion`/`thickness`.
 - `src/ai/api.ts` — `chat()` nhận thêm tham số `selected`, gửi trong body.
@@ -76,7 +87,9 @@ Trước đây AI không tạo được khối tròn xoay (trục, chốt, bạc
 - `src/kernel/rebuild.ts` — `shapeBounds`/`edgesInRegion`/`facesInRegion`; fillet/chamfer/shell dùng region khi không pick.
 - `src/ui/Toolbar.tsx` — nút 🔍 Giải thích.
 - `functions/api/chat.ts` — `body.selected` → context; `modify` + `shell`/region trong tool schema; hướng dẫn trong system prompt.
-- `src/ai/aiDesign.runtime.test.ts` — 5 case `modify` + 6 case region + 2 case revolve + 3 case sweep/loft (ống chữ L, reducer tròn, vuông→tròn).
+- `src/sketch/text.ts` (mới), `src/fonts/loadFont.ts` (mới), `src/fonts/Roboto-Regular.ttf` (mới) — Text.
+- `src/state/store.ts` — `addText` + `ensureFont` trong sendChat. `src/ui/Toolbar.tsx` — nút 🔤 Text.
+- `src/ai/aiDesign.runtime.test.ts` — 5 case `modify` + 6 region + 2 revolve + 3 sweep/loft + 2 text (chữ có lỗ, đắp lên tấm).
 
 ## 4. Kiểm thử
 `NODE_OPTIONS=--use-system-ca npm test` → **8/8 bộ ALL PASS**. Case modify mới: đổi chiều cao box, đổi Ø lỗ (resize sketch), nới rộng box, khớp theo id + bỏ qua target lạ, đổi bán kính fillet.

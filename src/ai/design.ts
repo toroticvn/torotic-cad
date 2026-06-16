@@ -2,6 +2,7 @@ import type { Feature, BoolOp, ExtrudeFeature, SketchFeature } from "../features
 import type { PlaneId } from "../sketch/SketchPlane";
 import { emptySketch, type ParametricSketch, type SketchPoint } from "../sketch/model";
 import { isCcwThrough } from "../sketch/arc";
+import { textSketch } from "../sketch/text";
 
 /**
  * High-level "AI design" emitted by Claude tool use (/api/chat apply_design and
@@ -30,6 +31,7 @@ export interface DesignOp {
     | "revolve"
     | "sweep"
     | "loft"
+    | "text"
     | "regularPolygon"
     | "slot"
     | "boltCircle"
@@ -46,6 +48,9 @@ export interface DesignOp {
   pathPoints?: [number, number][];
   /** loft: ≥2 cross-sections at increasing `offset`, blended into one solid. */
   loftSections?: LoftSection[];
+  /** text: the string to engrave/emboss; `fontSize` = cap em-size in mm. */
+  text?: string;
+  fontSize?: number;
   /** fillet/chamfer: which edges to round when not picked (default all). */
   edgeRegion?: "all" | "top" | "bottom" | "vertical" | "horizontal";
   /** shell: which face to open (default top); thickness via `radius`/`depth`/`thickness`. */
@@ -347,6 +352,21 @@ export function designToFeatures(design: Design, opts?: { continueSolid?: boolea
         sketchId: sf.id, angle: num(o.totalAngle, 360), axis,
         operation: hasSolid ? (o.op ?? "add") : "new",
       });
+      hasSolid = true;
+      continue;
+    }
+
+    if (o.shape === "text") {
+      // Glyph outlines → profile. Default emboss (raised); op="cut" engraves
+      // (cuts downward via flip — place at offset = top-face height).
+      const sk = textSketch(o.text ?? "", num(o.fontSize, 10), plane, offset, x, y);
+      if (!sk) continue; // no font loaded / empty string
+      const sf = sketchFeature(`TextSketch${n}`, sk);
+      features.push(sf);
+      const op: BoolOp = hasSolid ? (o.op ?? "add") : "new";
+      const ex = extrude(`Text${n}`, sf.id, num(o.h, 5), op);
+      if (op === "cut") ex.flip = true;
+      features.push(ex);
       hasSolid = true;
       continue;
     }

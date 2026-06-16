@@ -51,6 +51,7 @@ Khi gọi apply_design:
 - Khối TRÒN XOAY (trục, chốt, bạc, núm, cổ chai, phễu, ống bậc): shape "revolve" — biên dạng nửa mặt cắt là "points" [x,y] (khép kín, ≥3 đỉnh) nằm HẲN VỀ MỘT PHÍA của trục xoay, kèm "revolveAxis" ∈ {u,v} (trục đi qua gốc toạ độ sketch; u = trục ngang/x, v = trục dọc/y) và "totalAngle" (góc xoay, mặc định 360). Biên dạng KHÔNG được cắt qua trục. Vd trục bậc Ø20 dài 40 + Ø12 dài 20 quanh trục u: points [[0,0],[40,0],[40,10],[20,10],[20,6],[0,6]] (10 = bán kính 20/2), revolveAxis "u".
 - Ống/dây cong, tay nắm (QUÉT biên dạng theo đường dẫn): shape "sweep" — tiết diện tròn "profileDiameter" (mặc định 8) quét dọc đường "pathPoints" = danh sách [x,y] (≥2 điểm, đường gấp khúc hở). Vd ống Ø10 uốn chữ L: profileDiameter 10, pathPoints [[0,0],[-40,0],[-40,30]].
 - Khối NỐI nhiều tiết diện (ống chuyển bậc, phễu vuông-tròn, cánh): shape "loft" — "loftSections" = mảng ≥2 tiết diện xếp theo "offset" tăng dần (offset = khoảng cách dọc phương đùn). Mỗi tiết diện là tròn ("diameter"), chữ nhật ("w","d"), hoặc tự do ("points" [x,y] khép kín ≥3). Vd ống tròn Ø40→Ø16 cao 50: loftSections [{offset:0,diameter:40},{offset:50,diameter:16}].
+- KHẮC/ĐẮP CHỮ, logo chữ: shape "text" — "text" (nội dung), "fontSize" (cỡ chữ mm, mặc định 10), "h" (độ dày đùn, mặc định 5), x/y (vị trí tâm). Mặc định ĐẮP NỔI (op "add" nếu đã có khối, "new" nếu chưa). Muốn KHẮC CHÌM thì op "cut" + đặt offset = chiều cao mặt trên của khối (chữ sẽ cắt xuống mặt trên). Vd đắp chữ "TOROTIC" cao 8 dày 2 lên mặt trên khối cao 10: text "TOROTIC", fontSize 8, h 2, offset 10, op "add".
 - Đa giác đều (đai ốc, đầu bu-lông lục giác, bát giác): shape "regularPolygon" (sides, diameter = đường kính qua đỉnh, x, y, h, angle).
 - Rãnh / lỗ ô-van: shape "slot" (length = khoảng 2 tâm, width = bề rộng, x, y, angle; cắt thì op="cut" + depth, làm lồi thì op khác + h).
 - Mặt bích nhiều lỗ (vòng lỗ bu-lông): vẽ đĩa bằng "cylinder" trước, rồi shape "boltCircle" (boltCircleDiameter = PCD, holeDiameter, count, depth) để khoét cả vòng lỗ một lần.
@@ -115,7 +116,9 @@ const APPLY_DESIGN_TOOL = {
         items: {
           type: "object",
           properties: {
-            shape: { type: "string", enum: ["box", "cylinder", "hole", "fillet", "chamfer", "shell", "polygon", "revolve", "sweep", "loft", "regularPolygon", "slot", "boltCircle", "thread", "mirror", "patternLinear", "patternCircular"] },
+            shape: { type: "string", enum: ["box", "cylinder", "hole", "fillet", "chamfer", "shell", "polygon", "revolve", "sweep", "loft", "text", "regularPolygon", "slot", "boltCircle", "thread", "mirror", "patternLinear", "patternCircular"] },
+            text: { type: "string", description: "text: nội dung chữ cần khắc/đắp" },
+            fontSize: { type: "number", description: "text: cỡ chữ (mm, mặc định 10)" },
             op: { type: "string", enum: ["new", "add", "cut"], description: "Phép boolean (box/cylinder/hole/polygon/revolve/sweep/loft)" },
             revolveAxis: { type: "string", enum: ["u", "v"], description: "revolve: trục xoay qua gốc sketch (u=ngang, v=dọc)" },
             profileDiameter: { type: "number", description: "sweep: đường kính tiết diện tròn (mm, mặc định 8)" },
