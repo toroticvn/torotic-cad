@@ -16,6 +16,8 @@ import { StatusBar } from "./ui/StatusBar";
 import { ChatPanel } from "./ui/ChatPanel";
 import { AiDrawDialog } from "./ui/AiDrawDialog";
 import { Notice } from "./ui/Notice";
+import { FeedbackButton } from "./ui/FeedbackButton";
+import { FeedbackAdmin } from "./ui/FeedbackAdmin";
 import { ViewportCanvas } from "./viewport/ViewportCanvas";
 import { useViewportStore } from "./state/store";
 
@@ -59,6 +61,8 @@ export function App() {
       <ChatPanel />
       <AiDrawDialog />
       <Notice />
+      <FeedbackButton />
+      <FeedbackAdmin />
     </div>
   );
 }
