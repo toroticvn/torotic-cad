@@ -53,6 +53,14 @@ Trước đây fillet/chamfer chỉ "bo hết cạnh" hoặc phải **pick từn
 
 Test (trong `aiDesign.runtime.test.ts`, dùng part mặt `top` để Y là trục lên): fillet "all" vs "top" đổi hình học khác nhau (top bo ít cạnh hơn); shell mở mặt trên/dưới đều dựng 1 khối và khoét rỗng (nhiều đỉnh hơn khối đặc).
 
+## 2d. AI vẽ khối TRÒN XOAY (revolve)
+
+Trước đây AI không tạo được khối tròn xoay (trục, chốt, bạc, núm, phễu, ống bậc) — primitive còn thiếu lớn nhất cho xưởng. Giờ có shape `"revolve"`:
+- `design.ts`: shape `"revolve"` + `revolveAxis` ∈ {u,v}; `designToFeatures` dựng sketch biên dạng (`polygonSketch` từ `points`) rồi gắn `RevolveFeature` (angle = `totalAngle` mặc định 360, axis u/v, op new/add/cut). Tận dụng `RevolveFeature` + `buildFeatureSolid` (đã có sẵn trong kernel).
+- Biên dạng là **nửa mặt cắt khép kín nằm hẳn một phía của trục** (trục đi qua gốc sketch theo u hoặc v); KHÔNG cắt qua trục.
+- `chat.ts`: thêm `"revolve"` vào enum shape + `revolveAxis` + hướng dẫn (vd trục bậc Ø20 dài 40 + Ø12 dài 20 → points `[[0,0],[40,0],[40,10],[20,10],[20,6],[0,6]]`, revolveAxis "u").
+- Test (`aiDesign.runtime.test.ts`): trục bậc xoay 360° về trục u + nửa khối xoay 180° về trục v — đều dựng 1 body.
+
 ## 3. File đụng tới
 - `src/ai/design.ts` — `ModifyOp`, `Design.modify`, `applyModify`, `resizeSketch`; shape `"shell"` + `edgeRegion`/`faceRegion`/`thickness`.
 - `src/ai/api.ts` — `chat()` nhận thêm tham số `selected`, gửi trong body.
@@ -61,7 +69,7 @@ Test (trong `aiDesign.runtime.test.ts`, dùng part mặt `top` để Y là trụ
 - `src/kernel/rebuild.ts` — `shapeBounds`/`edgesInRegion`/`facesInRegion`; fillet/chamfer/shell dùng region khi không pick.
 - `src/ui/Toolbar.tsx` — nút 🔍 Giải thích.
 - `functions/api/chat.ts` — `body.selected` → context; `modify` + `shell`/region trong tool schema; hướng dẫn trong system prompt.
-- `src/ai/aiDesign.runtime.test.ts` — 5 case `modify` + 6 case region (fillet top/all, shell top/bottom).
+- `src/ai/aiDesign.runtime.test.ts` — 5 case `modify` + 6 case region + 2 case revolve (trục bậc 360°, nửa khối 180°).
 
 ## 4. Kiểm thử
 `NODE_OPTIONS=--use-system-ca npm test` → **8/8 bộ ALL PASS**. Case modify mới: đổi chiều cao box, đổi Ø lỗ (resize sketch), nới rộng box, khớp theo id + bỏ qua target lạ, đổi bán kính fillet.

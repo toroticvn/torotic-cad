@@ -17,6 +17,7 @@ export interface DesignOp {
     | "chamfer"
     | "shell"
     | "polygon"
+    | "revolve"
     | "regularPolygon"
     | "slot"
     | "boltCircle"
@@ -25,6 +26,8 @@ export interface DesignOp {
     | "patternLinear"
     | "patternCircular";
   op?: BoolOp;
+  /** revolve: which sketch-plane axis through the origin to spin the profile about. */
+  revolveAxis?: "u" | "v";
   /** fillet/chamfer: which edges to round when not picked (default all). */
   edgeRegion?: "all" | "top" | "bottom" | "vertical" | "horizontal";
   /** shell: which face to open (default top); thickness via `radius`/`depth`/`thickness`. */
@@ -298,6 +301,23 @@ export function designToFeatures(design: Design, opts?: { continueSolid?: boolea
       const sf = sketchFeature(`Sketch${n}`, sk);
       features.push(sf);
       features.push(extrude(`Profile${n}`, sf.id, num(o.h, 20), hasSolid ? (o.op ?? "add") : "new"));
+      hasSolid = true;
+      continue;
+    }
+
+    if (o.shape === "revolve") {
+      // A turned/lathe part: a closed profile on one side of the chosen axis
+      // (which passes through the sketch origin), spun `totalAngle`° about it.
+      const sk = polygonSketch(plane, offset, o.points ?? []);
+      if (!sk) continue; // need ≥3 valid profile vertices
+      const sf = sketchFeature(`Sketch${n}`, sk);
+      features.push(sf);
+      const axis = o.revolveAxis === "v" ? "v" : "u";
+      features.push({
+        id: id("revolve"), type: "revolve", name: `Revolve${n}`,
+        sketchId: sf.id, angle: num(o.totalAngle, 360), axis,
+        operation: hasSolid ? (o.op ?? "add") : "new",
+      });
       hasSolid = true;
       continue;
     }

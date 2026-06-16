@@ -172,6 +172,15 @@ async function main() {
   const fil = filMod.features.find((f) => f.type === "fillet");
   check("fillet radius modified 2 → 4", filMod.applied === 1 && fil?.type === "fillet" && fil.radius === 4, `r=${fil && fil.type === "fillet" ? fil.radius : "?"}`);
 
+  console.log("Revolve: turned parts (profile spun about a sketch axis):");
+  // Stepped shaft: Ø20 over 40 long, then Ø12 over 20, revolved about the u-axis.
+  const shaft = designToFeatures({ operations: [{ shape: "revolve", revolveAxis: "u", totalAngle: 360, points: [[0, 0], [40, 0], [40, 10], [20, 10], [20, 6], [0, 6]] }] });
+  const shaftSolid = rebuildSolids(shaft);
+  check("revolve (full 360) builds one body", shaftSolid.length === 1 && shaftSolid[0].indices.length > 0, `bodies=${shaftSolid.length}`);
+  // Partial revolve (a 180° half) about the v-axis still builds a body.
+  const half = rebuildSolids(designToFeatures({ operations: [{ shape: "revolve", revolveAxis: "v", totalAngle: 180, points: [[0, 0], [8, 0], [8, 30], [0, 30]] }] }));
+  check("revolve (partial 180°) builds one body", half.length === 1 && half[0].indices.length > 0, `bodies=${half.length}`);
+
   console.log("Region fillet / shell (top-plane parts, +Y is up):");
   const rbox = designToFeatures({ operations: [{ shape: "box", w: 60, d: 40, h: 20 }] });
   const rbaseN = rebuildSolids(rbox)[0].positions.length;
