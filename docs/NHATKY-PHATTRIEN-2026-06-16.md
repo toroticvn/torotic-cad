@@ -79,6 +79,14 @@ Tính năng đã hoãn từ trước (cần font + test mắt). Kiến trúc tá
 - **Thủ công:** nút 🔤 Text trên Toolbar → `store.addText(text,size,depth)` (prompt nội dung/cỡ/độ dày). Chạy **offline** (không cần backend AI) — tiện test mắt geometry.
 - **Test:** "Aó" (có lỗ + dấu) dựng body hợp lệ; đắp chữ "OK" lên tấm → 1 body.
 
+## 2g. AI vẽ Gân/Rib (gusset tăng cứng)
+
+Trước đây gân phải dựng tay bằng polygon mỏng. Giờ shape `"rib"`:
+- Silhouette (tam giác gusset mặc định, hoặc chữ nhật `ribProfile:"rectangle"`) vẽ trên mặt phẳng **ĐỨNG** (`plane` front/right, mặc định front), góc vuông tại (x,y), cạnh `length` dọc đáy + `h` lên tường.
+- Đùn `thickness` với **midplane=true** để gân căn giữa (ôm tường). op "add" để fuse vào khối (tường/đáy) — AI đặt x/y/offset cho gân chạm cả tường lẫn đáy.
+- `chat.ts`: enum + `ribProfile` + hướng dẫn (gân tam giác cao 30 dọc đáy 20 dày 5 ở góc → rib plane front, x 0, y 0, length 20, h 30, thickness 5).
+- Test: gân tam giác + chữ nhật dựng 1 body; fuse gân lên vách → 1 body, tăng đỉnh.
+
 ## 3. File đụng tới
 - `src/ai/design.ts` — `ModifyOp`, `Design.modify`, `applyModify`, `resizeSketch`; shape `"shell"` + `edgeRegion`/`faceRegion`/`thickness`.
 - `src/ai/api.ts` — `chat()` nhận thêm tham số `selected`, gửi trong body.
@@ -89,7 +97,7 @@ Tính năng đã hoãn từ trước (cần font + test mắt). Kiến trúc tá
 - `functions/api/chat.ts` — `body.selected` → context; `modify` + `shell`/region trong tool schema; hướng dẫn trong system prompt.
 - `src/sketch/text.ts` (mới), `src/fonts/loadFont.ts` (mới), `src/fonts/Roboto-Regular.ttf` (mới) — Text.
 - `src/state/store.ts` — `addText` + `ensureFont` trong sendChat. `src/ui/Toolbar.tsx` — nút 🔤 Text.
-- `src/ai/aiDesign.runtime.test.ts` — 5 case `modify` + 6 region + 2 revolve + 3 sweep/loft + 2 text (chữ có lỗ, đắp lên tấm).
+- `src/ai/aiDesign.runtime.test.ts` — 5 `modify` + 6 region + 2 revolve + 3 sweep/loft + 2 text + 4 rib.
 
 ## 4. Kiểm thử
 `NODE_OPTIONS=--use-system-ca npm test` → **8/8 bộ ALL PASS**. Case modify mới: đổi chiều cao box, đổi Ø lỗ (resize sketch), nới rộng box, khớp theo id + bỏ qua target lạ, đổi bán kính fillet.

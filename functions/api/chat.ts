@@ -58,7 +58,7 @@ Khi gọi apply_design:
 - Lỗ bậc / lỗ chìm (chỗ bắt bu-lông): shape "hole" với holeType="counterbore" (kèm cboreDiameter, cboreDepth) hoặc "countersink" (kèm csinkDiameter, csinkAngle). LUÔN đặt topOffset = chiều cao mặt trên của khối để phần khoét nằm đúng mặt trên.
 - Bo tròn / vát cạnh theo VÙNG: shape "fillet" hoặc "chamfer" với "radius" + "edgeRegion" ∈ {all, top, bottom, vertical, horizontal} (mặc định all = bo hết). "top"=cạnh mặt trên, "bottom"=mặt dưới, "vertical"=cạnh đứng, "horizontal"=cạnh ngang. Vd "bo hết cạnh trên 3mm" → fillet radius 3 edgeRegion "top".
 - Khoét rỗng (shell, làm hộp/khay): shape "shell" với "thickness" (độ dày thành) + "faceRegion" ∈ {top, bottom, front, back, left, right} = mặt để hở (mặc định top). Vd "khoét rỗng dày 2mm" → shell thickness 2 faceRegion "top".
-- Gân tăng cứng (rib): dùng "polygon" tạo tiết diện tam giác/chữ nhật mỏng rồi đùn (op="add").
+- Gân tăng cứng (rib/gusset): shape "rib" — tấm tăng cứng mỏng đứng trên mặt phẳng ĐỨNG ("plane" = "front" hoặc "right"). Tham số: "ribProfile" ∈ {triangle (gusset tam giác, mặc định), rectangle (vách chữ nhật)}, "length" (cạnh dọc theo đáy), "h" (cao theo tường), "thickness" (bề dày gân, đùn căn giữa để ôm tường), x/y (góc vuông nơi tường gặp đáy), offset. Đặt x/y/offset sao cho gân CHẠM cả tường và đáy rồi op="add" để dính vào khối. Vd gân tam giác cao 30 dọc đáy 20 dày 5 ở góc: rib plane "front", x 0, y 0, length 20, h 30, thickness 5.
 - Ren xoắn THẬT (bu-lông, ti ren, vít): shape "thread" — ren NGOÀI dạng helix thật. Tham số: diameter (đường kính danh nghĩa, vd M10→10), pitch (bước ren; bỏ trống sẽ tự lấy bước thô theo đường kính), length (chiều dài ren), x, y (tâm), offset (toạ độ gốc theo trục ren), axis ∈ {x,y,z} (mặc định z). Ren luôn là MỘT KHỐI RIÊNG (multi-body): muốn làm bu-lông thì tạo đầu bu-lông (regularPolygon/cylinder) rồi đặt "thread" nối tiếp ngay sau, cho chồng nhẹ vào đầu. Lưu ý hạn chế hiện tại: chưa làm được REN TRONG (lỗ taro) — nếu cần ren trong thì dùng lỗ trơn và nói rõ.
 - Soi gương cả khối: shape "mirror", "mirrorPlane" ∈ {XY,XZ,YZ}, "merge" (true=gộp 1 khối, false=2 khối).
 - Lặp khối: "patternLinear" (count, dx,dy,dz) hoặc "patternCircular" (count, totalAngle, axis ∈ {x,y,z}).
@@ -119,6 +119,7 @@ const APPLY_DESIGN_TOOL = {
             shape: { type: "string", enum: ["box", "cylinder", "hole", "fillet", "chamfer", "shell", "polygon", "revolve", "sweep", "loft", "text", "regularPolygon", "slot", "boltCircle", "thread", "mirror", "patternLinear", "patternCircular"] },
             text: { type: "string", description: "text: nội dung chữ cần khắc/đắp" },
             fontSize: { type: "number", description: "text: cỡ chữ (mm, mặc định 10)" },
+            ribProfile: { type: "string", enum: ["triangle", "rectangle"], description: "rib: dạng gân (tam giác gusset / vách chữ nhật)" },
             op: { type: "string", enum: ["new", "add", "cut"], description: "Phép boolean (box/cylinder/hole/polygon/revolve/sweep/loft)" },
             revolveAxis: { type: "string", enum: ["u", "v"], description: "revolve: trục xoay qua gốc sketch (u=ngang, v=dọc)" },
             profileDiameter: { type: "number", description: "sweep: đường kính tiết diện tròn (mm, mặc định 8)" },

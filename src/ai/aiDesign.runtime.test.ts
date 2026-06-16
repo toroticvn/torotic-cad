@@ -210,6 +210,18 @@ async function main() {
   const sqToRound = rebuildSolids(designToFeatures({ operations: [{ shape: "loft", loftSections: [{ offset: 0, w: 40, d: 40 }, { offset: 40, diameter: 20 }] }] }));
   check("square-to-round loft builds one body", sqToRound.length === 1 && sqToRound[0].indices.length > 0, `bodies=${sqToRound.length}`);
 
+  console.log("Rib: stiffening gusset (triangle / rectangle) + fuse onto a wall:");
+  const triRib = rebuildSolids(designToFeatures({ operations: [{ shape: "rib", plane: "front", x: 0, y: 0, length: 20, h: 30, thickness: 5 }] }));
+  check("triangular rib builds one body", triRib.length === 1 && triRib[0].indices.length > 0, `bodies=${triRib.length}`);
+  const rectRib = rebuildSolids(designToFeatures({ operations: [{ shape: "rib", ribProfile: "rectangle", plane: "front", length: 20, h: 20, thickness: 4 }] }));
+  check("rectangular rib builds one body", rectRib.length === 1 && rectRib[0].indices.length > 0, `bodies=${rectRib.length}`);
+  // Fuse a rib onto a standing wall (op add) → still one body, more geometry.
+  const wall = designToFeatures({ operations: [{ shape: "box", w: 6, d: 40, h: 40 }] });
+  const wallN = rebuildSolids(wall)[0].positions.length;
+  const braced = rebuildSolids([...wall, ...designToFeatures({ mode: "append", operations: [{ shape: "rib", plane: "front", x: 3, y: 0, length: 24, h: 30, thickness: 6, op: "add" }] }, { continueSolid: true })]);
+  check("rib fuses onto a wall (one body)", braced.length === 1 && braced[0].indices.length > 0, `bodies=${braced.length}`);
+  check("rib added geometry to the wall", (braced[0]?.positions.length ?? 0) !== wallN, `wall=${wallN} braced=${braced[0]?.positions.length}`);
+
   console.log("Region fillet / shell (top-plane parts, +Y is up):");
   const rbox = designToFeatures({ operations: [{ shape: "box", w: 60, d: 40, h: 20 }] });
   const rbaseN = rebuildSolids(rbox)[0].positions.length;

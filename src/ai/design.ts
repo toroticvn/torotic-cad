@@ -32,6 +32,7 @@ export interface DesignOp {
     | "sweep"
     | "loft"
     | "text"
+    | "rib"
     | "regularPolygon"
     | "slot"
     | "boltCircle"
@@ -51,6 +52,8 @@ export interface DesignOp {
   /** text: the string to engrave/emboss; `fontSize` = cap em-size in mm. */
   text?: string;
   fontSize?: number;
+  /** rib: silhouette shape (triangular gusset default, or a rectangular wall). */
+  ribProfile?: "triangle" | "rectangle";
   /** fillet/chamfer: which edges to round when not picked (default all). */
   edgeRegion?: "all" | "top" | "bottom" | "vertical" | "horizontal";
   /** shell: which face to open (default top); thickness via `radius`/`depth`/`thickness`. */
@@ -352,6 +355,27 @@ export function designToFeatures(design: Design, opts?: { continueSolid?: boolea
         sketchId: sf.id, angle: num(o.totalAngle, 360), axis,
         operation: hasSolid ? (o.op ?? "add") : "new",
       });
+      hasSolid = true;
+      continue;
+    }
+
+    if (o.shape === "rib") {
+      // A stiffening rib/gusset: a thin silhouette on a VERTICAL plane (front/
+      // right) extruded `thickness` and centred (midplane) so it straddles a
+      // wall. Right-angle corner at (x,y): along the base +length, up the wall +h.
+      const ribPlane: PlaneId = (["top", "front", "right"] as const).includes(o.plane as PlaneId) ? (o.plane as PlaneId) : "front";
+      const len = num(o.length, 20);
+      const ht = num(o.h, 20);
+      const t = num(o.thickness, 4);
+      const tri: [number, number][] = [[x, y], [x + len, y], [x, y + ht]];
+      const recq: [number, number][] = [[x, y], [x + len, y], [x + len, y + ht], [x, y + ht]];
+      const sk = polygonSketch(ribPlane, offset, o.ribProfile === "rectangle" ? recq : tri);
+      if (!sk) continue;
+      const sf = sketchFeature(`RibSketch${n}`, sk);
+      features.push(sf);
+      const ex = extrude(`Rib${n}`, sf.id, t, hasSolid ? (o.op ?? "add") : "new");
+      ex.midplane = true; // centre the rib thickness on the plane (straddles a wall)
+      features.push(ex);
       hasSolid = true;
       continue;
     }
