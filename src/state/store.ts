@@ -131,6 +131,19 @@ interface AppState {
   /** Manual path: export image + prompt to use with a claude.ai subscription. */
   askClaudeAi: () => void;
 
+  // --- Tài khoản (email + mật khẩu, Cloudflare D1) ---
+  authUser: { id: number; email: string; ten: string | null } | null;
+  authChecked: boolean;
+  authBusy: boolean;
+  authError: string | null;
+  authOpen: boolean;
+  openAuth: () => void;
+  closeAuth: () => void;
+  checkAuth: () => Promise<void>;
+  login: (email: string, password: string) => Promise<boolean>;
+  signup: (email: string, password: string, ten: string) => Promise<boolean>;
+  logout: () => Promise<void>;
+
   // --- AI draw: generate a model from a text description ---
   aiDrawOpen: boolean;
   aiDrawBusy: boolean;
@@ -449,6 +462,69 @@ export const useViewportStore = create<AppState>((set, get) => ({
       notice:
         "Đã tải ảnh 'torotic-banve.png' và copy nội dung câu hỏi.\n\nSang tab claude.ai vừa mở:\n1) Dán nội dung (Ctrl+V).\n2) Đính kèm ảnh 'torotic-banve.png' (vừa tải về).\n3) Gửi — Claude sẽ đánh giá bằng gói Pro/Max của bạn.",
     });
+  },
+
+  authUser: null,
+  authChecked: false,
+  authBusy: false,
+  authError: null,
+  authOpen: false,
+  openAuth: () => set({ authOpen: true, authError: null }),
+  closeAuth: () => set({ authOpen: false }),
+  checkAuth: async () => {
+    try {
+      const r = await fetch("/api/auth");
+      const d = await r.json();
+      set({ authUser: d.user ?? null, authChecked: true });
+    } catch {
+      set({ authChecked: true });
+    }
+  },
+  login: async (email, password) => {
+    set({ authBusy: true, authError: null });
+    try {
+      const r = await fetch("/api/auth", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ action: "login", email, password }),
+      });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(d.error || `Lỗi máy chủ (${r.status}).`);
+      set({ authUser: d.user, authBusy: false, authOpen: false });
+      return true;
+    } catch (e) {
+      set({ authError: (e as Error).message, authBusy: false });
+      return false;
+    }
+  },
+  signup: async (email, password, ten) => {
+    set({ authBusy: true, authError: null });
+    try {
+      const r = await fetch("/api/auth", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ action: "signup", email, password, ten }),
+      });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(d.error || `Lỗi máy chủ (${r.status}).`);
+      set({ authUser: d.user, authBusy: false, authOpen: false });
+      return true;
+    } catch (e) {
+      set({ authError: (e as Error).message, authBusy: false });
+      return false;
+    }
+  },
+  logout: async () => {
+    try {
+      await fetch("/api/auth", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ action: "logout" }),
+      });
+    } catch {
+      /* ignore */
+    }
+    set({ authUser: null });
   },
 
   aiDrawOpen: false,

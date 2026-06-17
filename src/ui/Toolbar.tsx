@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import { useViewportStore } from "../state/store";
+import { AccountButton } from "./AccountButton";
 
 export function Toolbar() {
   const mode = useViewportStore((s) => s.mode);
@@ -151,6 +152,10 @@ export function Toolbar() {
       </div>
 
       <span className="mode-badge">Chế độ: {mode === "sketch" ? "Sketch" : "Model"}</span>
+
+      <div className="tool-group toolbar-right">
+        <AccountButton />
+      </div>
     </div>
   );
 }

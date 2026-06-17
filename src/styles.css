@@ -1180,3 +1180,19 @@ body,
   background: var(--panel); cursor: pointer; font-size: 12px; color: var(--muted);
 }
 .feedback-add-img:hover { border-color: var(--accent); color: var(--accent); }
+
+/* ===== Tài khoản (auth) ===== */
+.toolbar-right { margin-left: auto; }
+.account-area { display: inline-flex; align-items: center; gap: 8px; }
+.account-name { font-size: 13px; color: var(--text); max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.auth-modal { width: 380px; }
+.auth-tabs { display: flex; gap: 6px; margin-bottom: 14px; }
+.auth-tabs button {
+  flex: 1; padding: 8px; border: 1px solid var(--border); background: var(--panel);
+  border-radius: 6px; cursor: pointer; font: inherit; font-weight: 600; color: var(--muted);
+}
+.auth-tabs button.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+.auth-input {
+  width: 100%; box-sizing: border-box; border: 1px solid var(--border);
+  border-radius: 6px; padding: 9px; font: inherit; margin-bottom: 4px;
+}

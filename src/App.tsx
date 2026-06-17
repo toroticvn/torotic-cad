@@ -18,8 +18,10 @@ import { AiDrawDialog } from "./ui/AiDrawDialog";
 import { Notice } from "./ui/Notice";
 import { FeedbackButton } from "./ui/FeedbackButton";
 import { FeedbackAdmin } from "./ui/FeedbackAdmin";
+import { AuthModal } from "./ui/AuthModal";
 import { ViewportCanvas } from "./viewport/ViewportCanvas";
 import { useViewportStore } from "./state/store";
+import { useEffect } from "react";
 
 export function App() {
   const mode = useViewportStore((s) => s.mode);
@@ -27,6 +29,9 @@ export function App() {
   const shellSession = useViewportStore((s) => s.shellSession);
   const draftSession = useViewportStore((s) => s.draftSession);
   const extrudeSession = useViewportStore((s) => s.extrudeSession);
+  const checkAuth = useViewportStore((s) => s.checkAuth);
+
+  useEffect(() => { void checkAuth(); }, [checkAuth]);
 
   const leftPanel = edgeSelect ? (
     <FilletPropertyManager />
@@ -63,6 +68,7 @@ export function App() {
       <Notice />
       <FeedbackButton />
       <FeedbackAdmin />
+      <AuthModal />
     </div>
   );
 }
