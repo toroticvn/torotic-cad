@@ -20,6 +20,7 @@ export function Toolbar() {
   const saveProject = useViewportStore((s) => s.saveProject);
   const loadProject = useViewportStore((s) => s.loadProject);
   const importFile = useViewportStore((s) => s.importFile);
+  const openProjects = useViewportStore((s) => s.openProjects);
   const undo = useViewportStore((s) => s.undo);
   const redo = useViewportStore((s) => s.redo);
   const evaluateDrawing = useViewportStore((s) => s.evaluateDrawing);
@@ -124,8 +125,9 @@ export function Toolbar() {
       </div>
 
       <div className="tool-group">
-        <button onClick={saveProject} title="Lưu project (.json)">💾 Lưu</button>
-        <button onClick={() => fileRef.current?.click()} title="Mở project">📂 Mở</button>
+        <button className="ai-btn" onClick={openProjects} title="Dự án đám mây: tạo / mở / lưu theo tài khoản">☁ Dự án</button>
+        <button onClick={saveProject} title="Lưu ra file .json trên máy">💾 Lưu file</button>
+        <button onClick={() => fileRef.current?.click()} title="Mở file .json từ máy">📂 Mở file</button>
         <button onClick={() => importRef.current?.click()} title="Nhập file STEP/STL để vẽ tiếp trên đó">📥 Nhập STEP/STL</button>
         <button onClick={() => exportModel("step")} disabled={!hasSolid} title="Xuất STEP">⬇ STEP</button>
         <button onClick={() => exportModel("stl")} disabled={!hasSolid} title="Xuất STL (in 3D)">⬇ STL</button>

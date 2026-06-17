@@ -144,6 +144,22 @@ interface AppState {
   signup: (email: string, password: string, ten: string) => Promise<boolean>;
   logout: () => Promise<void>;
 
+  // --- Dự án đám mây (D1 metadata + R2 nội dung) ---
+  cloudProjectId: number | null;
+  cloudProjectName: string | null;
+  myProjects: { id: number; ten: string; size_bytes?: number; updated_at: string }[];
+  projectsOpen: boolean;
+  projectBusy: boolean;
+  projectError: string | null;
+  openProjects: () => void;
+  closeProjects: () => void;
+  listProjects: () => Promise<void>;
+  newCloudProject: (ten: string) => Promise<void>;
+  openCloudProject: (id: number) => Promise<void>;
+  saveCloudProject: (ten?: string) => Promise<void>;
+  renameCloudProject: (id: number, ten: string) => Promise<void>;
+  deleteCloudProject: (id: number) => Promise<void>;
+
   // --- AI draw: generate a model from a text description ---
   aiDrawOpen: boolean;
   aiDrawBusy: boolean;
@@ -525,6 +541,123 @@ export const useViewportStore = create<AppState>((set, get) => ({
       /* ignore */
     }
     set({ authUser: null });
+  },
+
+  cloudProjectId: null,
+  cloudProjectName: null,
+  myProjects: [],
+  projectsOpen: false,
+  projectBusy: false,
+  projectError: null,
+  openProjects: () => {
+    set({ projectsOpen: true, projectError: null });
+    if (get().authUser) void get().listProjects();
+  },
+  closeProjects: () => set({ projectsOpen: false }),
+  listProjects: async () => {
+    if (!get().authUser) return;
+    set({ projectBusy: true, projectError: null });
+    try {
+      const r = await fetch("/api/projects");
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(d.error || `Lỗi (${r.status}).`);
+      set({ myProjects: d.items ?? [], projectBusy: false });
+    } catch (e) {
+      set({ projectError: (e as Error).message, projectBusy: false });
+    }
+  },
+  newCloudProject: async (ten) => {
+    if (!get().authUser) { set({ authOpen: true }); return; }
+    set({ projectBusy: true, projectError: null });
+    try {
+      const r = await fetch("/api/projects", {
+        method: "POST", headers: { "content-type": "application/json" },
+        body: JSON.stringify({ action: "create", ten }),
+      });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok || !d.item) throw new Error(d.error || `Lỗi (${r.status}).`);
+      pushHistory(get, set);
+      set({
+        features: [], selectedFeatureId: null, mode: "model", sketch: null,
+        cloudProjectId: d.item.id, cloudProjectName: d.item.ten, projectBusy: false, projectsOpen: false,
+      });
+      await rebuild(get, set);
+      void get().listProjects();
+    } catch (e) {
+      set({ projectError: (e as Error).message, projectBusy: false });
+    }
+  },
+  openCloudProject: async (id) => {
+    set({ projectBusy: true, projectError: null });
+    try {
+      const r = await fetch(`/api/projects?id=${id}`);
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok || !d.item) throw new Error(d.error || `Lỗi (${r.status}).`);
+      const parsed = JSON.parse(d.item.data);
+      if (!Array.isArray(parsed.features)) throw new Error("Dữ liệu dự án hỏng.");
+      pushHistory(get, set);
+      set({
+        features: parsed.features as Feature[], selectedFeatureId: null, mode: "model", sketch: null,
+        cloudProjectId: d.item.id, cloudProjectName: d.item.ten, projectBusy: false, projectsOpen: false,
+      });
+      await rebuild(get, set);
+    } catch (e) {
+      set({ projectError: "Không mở được dự án: " + (e as Error).message, projectBusy: false });
+    }
+  },
+  saveCloudProject: async (ten) => {
+    if (!get().authUser) { set({ authOpen: true }); return; }
+    set({ projectBusy: true, projectError: null });
+    try {
+      let id = get().cloudProjectId;
+      let name = ten || get().cloudProjectName;
+      // Chưa gắn dự án nào → tạo mới trước.
+      if (!id) {
+        const cr = await fetch("/api/projects", {
+          method: "POST", headers: { "content-type": "application/json" },
+          body: JSON.stringify({ action: "create", ten: name || "Dự án mới" }),
+        });
+        const cd = await cr.json().catch(() => ({}));
+        if (!cr.ok || !cd.item) throw new Error(cd.error || `Lỗi tạo dự án (${cr.status}).`);
+        id = cd.item.id as number;
+        name = cd.item.ten as string;
+      }
+      const data = JSON.stringify({ version: 1, features: get().features });
+      const r = await fetch("/api/projects", {
+        method: "POST", headers: { "content-type": "application/json" },
+        body: JSON.stringify({ action: "save", id, ten, data }),
+      });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(d.error || `Lỗi (${r.status}).`);
+      set({ cloudProjectId: id, cloudProjectName: name, projectBusy: false });
+      void get().listProjects();
+    } catch (e) {
+      set({ projectError: "Không lưu được: " + (e as Error).message, projectBusy: false });
+    }
+  },
+  renameCloudProject: async (id, ten) => {
+    try {
+      await fetch("/api/projects", {
+        method: "POST", headers: { "content-type": "application/json" },
+        body: JSON.stringify({ action: "rename", id, ten }),
+      });
+      if (get().cloudProjectId === id) set({ cloudProjectName: ten });
+      void get().listProjects();
+    } catch (e) {
+      set({ projectError: (e as Error).message });
+    }
+  },
+  deleteCloudProject: async (id) => {
+    try {
+      await fetch("/api/projects", {
+        method: "POST", headers: { "content-type": "application/json" },
+        body: JSON.stringify({ action: "delete", id }),
+      });
+      if (get().cloudProjectId === id) set({ cloudProjectId: null, cloudProjectName: null });
+      void get().listProjects();
+    } catch (e) {
+      set({ projectError: (e as Error).message });
+    }
   },
 
   aiDrawOpen: false,

@@ -19,6 +19,7 @@ import { Notice } from "./ui/Notice";
 import { FeedbackButton } from "./ui/FeedbackButton";
 import { FeedbackAdmin } from "./ui/FeedbackAdmin";
 import { AuthModal } from "./ui/AuthModal";
+import { ProjectsModal } from "./ui/ProjectsModal";
 import { ViewportCanvas } from "./viewport/ViewportCanvas";
 import { useViewportStore } from "./state/store";
 import { useEffect } from "react";
@@ -69,6 +70,7 @@ export function App() {
       <FeedbackButton />
       <FeedbackAdmin />
       <AuthModal />
+      <ProjectsModal />
     </div>
   );
 }
