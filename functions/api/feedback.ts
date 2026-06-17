@@ -89,11 +89,26 @@ export const onRequestPost = async (ctx: { request: Request; env: Env }): Promis
   const modules = Array.isArray(body.modules) ? JSON.stringify(body.modules) : null;
   const cay = typeof body.cay_tinh_nang === "string" ? body.cay_tinh_nang.slice(0, 100_000) : null;
 
+  // Ảnh người dùng tự đính kèm: chỉ giữ data URL hợp lệ, gom tới ~1.5MB tổng.
+  let anhThem: string | null = null;
+  if (Array.isArray(body.anh_them)) {
+    const kept: string[] = [];
+    let total = 0;
+    for (const it of body.anh_them) {
+      if (typeof it !== "string" || !it.startsWith("data:image/")) continue;
+      if (total + it.length > 1_500_000) break;
+      kept.push(it);
+      total += it.length;
+      if (kept.length >= 4) break;
+    }
+    if (kept.length) anhThem = JSON.stringify(kept);
+  }
+
   const r = await env.DB.prepare(
-    `insert into feedback (loai, mo_ta, modules, anh, cay_tinh_nang, phien_ban, trang, trinh_duyet, man_hinh)
-     values (?1,?2,?3,?4,?5,?6,?7,?8,?9)`,
+    `insert into feedback (loai, mo_ta, modules, anh, anh_them, cay_tinh_nang, phien_ban, trang, trinh_duyet, man_hinh)
+     values (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10)`,
   ).bind(
-    loai, moTa, modules, anh, cay,
+    loai, moTa, modules, anh, anhThem, cay,
     String(body.phien_ban ?? "").slice(0, 80),
     String(body.trang ?? "").slice(0, 300),
     String(body.trinh_duyet ?? "").slice(0, 400),

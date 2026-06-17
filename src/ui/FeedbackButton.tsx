@@ -1,5 +1,29 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useViewportStore } from "../state/store";
+
+const MAX_IMGS = 4;
+
+/** Downscale an image file to a JPEG data URL (≤1000px) so it fits in D1. */
+function fileToScaledDataURL(file: File, max = 1000): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      const scale = Math.min(1, max / Math.max(img.width, img.height));
+      const w = Math.max(1, Math.round(img.width * scale));
+      const h = Math.max(1, Math.round(img.height * scale));
+      const c = document.createElement("canvas");
+      c.width = w; c.height = h;
+      const ctx = c.getContext("2d");
+      if (!ctx) { URL.revokeObjectURL(url); reject(new Error("no canvas")); return; }
+      ctx.drawImage(img, 0, 0, w, h);
+      URL.revokeObjectURL(url);
+      resolve(c.toDataURL("image/jpeg", 0.75));
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error("bad image")); };
+    img.src = url;
+  });
+}
 
 /** App version sent with each report (bump on release; shows in admin view). */
 const APP_VERSION = "2026-06-17";
@@ -20,12 +44,27 @@ export function FeedbackButton() {
   const [moTa, setMoTa] = useState("");
   const [mods, setMods] = useState<string[]>([]);
   const [attach, setAttach] = useState(true);
+  const [imgs, setImgs] = useState<string[]>([]); // user-attached images (data URLs)
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
 
   const reset = () => {
-    setMoTa(""); setMods([]); setLoai("bao_loi"); setAttach(true); setError(null); setDone(false);
+    setMoTa(""); setMods([]); setLoai("bao_loi"); setAttach(true); setImgs([]); setError(null); setDone(false);
+  };
+
+  const onPickImages = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files ?? []);
+    e.target.value = "";
+    if (!files.length) return;
+    const room = MAX_IMGS - imgs.length;
+    const out: string[] = [];
+    for (const f of files.slice(0, room)) {
+      if (!f.type.startsWith("image/")) continue;
+      try { out.push(await fileToScaledDataURL(f)); } catch { /* skip bad image */ }
+    }
+    if (out.length) setImgs((s) => [...s, ...out].slice(0, MAX_IMGS));
   };
 
   const toggleMod = (m: string) =>
@@ -41,6 +80,7 @@ export function FeedbackButton() {
         mo_ta: moTa.trim(),
         modules: mods,
         anh,
+        anh_them: imgs,
         cay_tinh_nang: JSON.stringify(features ?? []).slice(0, 100_000),
         phien_ban: APP_VERSION,
         trang: location.href,
@@ -113,6 +153,22 @@ export function FeedbackButton() {
                       {m}
                     </label>
                   ))}
+                </div>
+
+                <label className="feedback-label">Ảnh chụp lỗi (tuỳ chọn, tối đa {MAX_IMGS})</label>
+                <div className="feedback-imgs">
+                  {imgs.map((src, i) => (
+                    <div className="feedback-thumb" key={i}>
+                      <img src={src} alt={`img${i}`} />
+                      <button type="button" className="feedback-thumb-x" onClick={() => setImgs((s) => s.filter((_, j) => j !== i))} disabled={busy}>×</button>
+                    </div>
+                  ))}
+                  {imgs.length < MAX_IMGS && (
+                    <button type="button" className="feedback-add-img" onClick={() => fileRef.current?.click()} disabled={busy}>
+                      ＋ Thêm ảnh
+                    </button>
+                  )}
+                  <input ref={fileRef} type="file" accept="image/*" multiple style={{ display: "none" }} onChange={onPickImages} />
                 </div>
 
                 <label className="feedback-attach">

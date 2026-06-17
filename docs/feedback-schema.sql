@@ -8,7 +8,8 @@ create table if not exists feedback (
   loai          text not null,                       -- 'bao_loi' | 'tinh_nang'
   mo_ta         text not null,
   modules       text,                                -- JSON array (vd '["Sketch","AI"]')
-  anh           text,                                -- ảnh viewport (data URL base64), có thể null
+  anh           text,                                -- ảnh viewport tự chụp (data URL base64), có thể null
+  anh_them      text,                                -- ảnh người dùng tự đính kèm (JSON mảng data URL)
   cay_tinh_nang text,                                -- feature tree JSON lúc báo
   phien_ban     text,                                -- version app
   trang         text,                                -- location.href

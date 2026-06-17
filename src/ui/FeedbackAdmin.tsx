@@ -18,7 +18,7 @@ interface Row {
   trang?: string; man_hinh?: string; trang_thai: string; ghi_chu_admin?: string;
   ly_do_tu_choi?: string; created_at: string; co_anh?: number;
 }
-interface Detail extends Row { anh?: string; cay_tinh_nang?: string; trinh_duyet?: string; }
+interface Detail extends Row { anh?: string; anh_them?: string; cay_tinh_nang?: string; trinh_duyet?: string; }
 
 function useHash(target: string): boolean {
   const [on, setOn] = useState(() => location.hash === target);
@@ -136,7 +136,8 @@ export function FeedbackAdmin() {
                   <div className="fa-small">{detail.trinh_duyet}</div>
                 </div>
 
-                {detail.anh && <img className="fa-shot" src={detail.anh} alt="screenshot" />}
+                {detail.anh && <img className="fa-shot" src={detail.anh} alt="viewport" />}
+                {parseImgs(detail.anh_them).map((src, i) => <img key={i} className="fa-shot" src={src} alt={`đính kèm ${i + 1}`} />)}
 
                 {detail.cay_tinh_nang && (
                   <details className="fa-tree">
@@ -172,6 +173,10 @@ export function FeedbackAdmin() {
 
 function safeList(s: string): string {
   try { return (JSON.parse(s) as string[]).join(", "); } catch { return s; }
+}
+function parseImgs(s?: string): string[] {
+  if (!s) return [];
+  try { const a = JSON.parse(s); return Array.isArray(a) ? a : []; } catch { return []; }
 }
 function pretty(s: string): string {
   try { return JSON.stringify(JSON.parse(s), null, 2); } catch { return s; }

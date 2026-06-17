@@ -46,6 +46,11 @@ Push `main` (hoặc Retry deployment) để Function + binding có hiệu lực.
   → tới Function đã deploy → cùng một D1. Hoạt động giống bản online.
 
 ## Ghi chú
-- Ảnh viewport lưu base64 trong D1; ảnh > ~800KB sẽ tự bỏ (giữ text) để an toàn giới hạn D1.
+- Người dùng có thể **tự đính kèm tối đa 4 ảnh chụp lỗi** (nút ＋ Thêm ảnh trong modal); ảnh được tự thu nhỏ (≤1000px, JPEG) trước khi gửi, lưu ở cột `anh_them` (JSON mảng).
+- Nếu bạn **đã tạo bảng trước bản này** (chưa có cột `anh_them`), chạy thêm trong D1 Console:
+  ```sql
+  alter table feedback add column anh_them text;
+  ```
+- Ảnh viewport tự chụp lưu base64 ở cột `anh`; ảnh > ~800KB sẽ tự bỏ (giữ text) để an toàn giới hạn D1.
 - Muốn tra cứu nhanh bằng SQL: D1 Console → `select id, loai, trang_thai, mo_ta, created_at from feedback order by created_at desc;`
 - Đổi nhãn module trong `src/ui/FeedbackButton.tsx` (mảng `MODULES`).
