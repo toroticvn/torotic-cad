@@ -14,6 +14,11 @@ Nút **📥 Nhập STEP/STL** trên toolbar → chọn `.step`/`.stp`/`.stl` →
 ## 1c. Tool báo lỗi / góp ý (mới 2026-06-17, cho bản dùng thật)
 Nút nổi **🐞 Báo lỗi** (góc dưới-phải, luôn hiện) → modal: loại (lỗi/tính năng) + mô tả + module + tự đính kèm **ảnh viewport + cây tính năng JSON + version/URL/trình duyệt** → POST `/api/feedback` lưu **Cloudflare D1**. Admin xem tại `…/#feedback-admin` (nhập `FEEDBACK_ADMIN_KEY`): danh sách + ảnh + cây + đổi trạng thái (moi→dang_xem→dang_lam→da_xong/tu_choi) + ghi chú/lý do. File: `functions/api/feedback.ts`, `src/ui/FeedbackButton.tsx`, `src/ui/FeedbackAdmin.tsx`, schema `docs/feedback-schema.sql`. **Cần setup 1 lần** (D1 binding tên `DB` + env `FEEDBACK_ADMIN_KEY`) — xem `docs/FEEDBACK-SETUP.md`.
 
+## 1d. Tài khoản + Dự án đám mây (mới 2026-06-17)
+- **Tài khoản** (email + mật khẩu, tự xây trên D1): nút **👤 Đăng nhập** góc phải → đăng ký/đăng nhập; phiên cookie HttpOnly 30 ngày; mật khẩu hash PBKDF2. Backend `functions/api/auth.ts` + `functions/_lib/auth.ts`. Xem `docs/AUTH-SETUP.md`.
+- **Dự án đám mây** (D1 metadata + **R2** nội dung): nút **☁ Dự án** → Tạo / Mở / Lưu / Đổi tên / Xoá theo tài khoản. JSON cây tính năng lưu R2 (`proj/<user>/<id>.json`) nên chịu được dự án nặng (nhúng STEP/STL). Backend `functions/api/projects.ts`. Lưu file `.json` ra máy (💾/📂) vẫn giữ, độc lập. Xem `docs/CLOUD-PROJECTS-SETUP.md`.
+- **Setup 1 lần (Cloudflare):** D1 binding `DB` + chạy `docs/auth-schema.sql`; R2 bucket + binding `BUCKET`. (Cùng D1 với feedback.)
+
 ## 2. Triển khai (deploy)
 - **Live:** https://torotic-cad.pages.dev
 - **Hạ tầng:** Cloudflare **Pages** (KHÔNG phải Worker — Workers Builds cần Vite 6, ta dùng Vite 5), git-connected, tự deploy mỗi lần `git push` lên `main`.

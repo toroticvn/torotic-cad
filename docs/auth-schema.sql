@@ -21,18 +21,17 @@ create table if not exists sessions (
 );
 create index if not exists sessions_user_idx on sessions(user_id);
 
--- Dự án lưu đám mây (Phần 2). Nội dung dự án (JSON cây tính năng) lưu ở R2
--- (key 'proj/<user_id>/<id>.json'); D1 chỉ giữ metadata.
+-- Dự án lưu đám mây (Phần 2). Lưu THẲNG trong D1 (cột `data`) — không cần R2.
 create table if not exists projects (
   id         integer primary key autoincrement,
   user_id    integer not null references users(id),
   ten        text not null,
-  size_bytes integer not null default 0,            -- cỡ nội dung trên R2
+  data       text not null default '{"version":1,"features":[]}',  -- JSON cây tính năng
+  size_bytes integer not null default 0,
   created_at text not null default (datetime('now')),
   updated_at text not null default (datetime('now'))
 );
 create index if not exists projects_user_idx on projects(user_id, updated_at desc);
 
--- Nếu bạn đã chạy bản schema cũ (projects có cột `data`), chạy thêm:
---   alter table projects add column size_bytes integer not null default 0;
--- (cột `data` cũ không dùng nữa, để nguyên cũng được.)
+-- Nếu bạn đã chạy bản schema TRƯỚC ĐÓ (projects thiếu cột `data`), chạy thêm:
+--   alter table projects add column data text not null default '{"version":1,"features":[]}';
