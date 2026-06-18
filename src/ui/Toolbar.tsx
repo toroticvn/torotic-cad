@@ -1,7 +1,33 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useViewportStore } from "../state/store";
 import { AccountButton } from "./AccountButton";
 import { CloudSaveIndicator } from "./CloudSaveIndicator";
+
+/** A compact dropdown menu: a labelled button that reveals a column of actions. */
+function Menu({ label, title, children }: { label: string; title?: string; children: React.ReactNode }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const onDoc = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", onDoc);
+    return () => document.removeEventListener("mousedown", onDoc);
+  }, [open]);
+  return (
+    <div className="tb-menu" ref={ref}>
+      <button className={"tb-menu-btn" + (open ? " open" : "")} title={title} onClick={() => setOpen((o) => !o)}>
+        {label} <span className="tb-caret">▾</span>
+      </button>
+      {open && (
+        <div className="tb-menu-pop" onClick={() => setOpen(false)}>
+          {children}
+        </div>
+      )}
+    </div>
+  );
+}
 
 export function Toolbar() {
   const mode = useViewportStore((s) => s.mode);
@@ -83,78 +109,62 @@ export function Toolbar() {
     <div className="toolbar">
       <span className="brand">Torotic CAD</span>
 
+      {/* Lệnh hay dùng để ngoài */}
       <div className="tool-group">
-        <button className={mode === "sketch" ? "active" : ""} onClick={enterSketch} disabled={mode === "sketch"} title="Tạo Sketch mới">
-          ✏️ Sketch
-        </button>
-        <button onClick={() => selected && openExtrude(selected.id)} disabled={!canSolid} title="Đùn sketch đã chọn">
-          ⬆️ Extrude
-        </button>
-        <button onClick={() => selected && openRevolve(selected.id)} disabled={!canSolid} title="Xoay tròn sketch đã chọn">
-          🔄 Revolve
-        </button>
-        <button onClick={openLoft} disabled={!canLoft} title="Loft: nối ≥2 sketch">
-          🪜 Loft
-        </button>
-        <button onClick={openSweep} disabled={!canLoft} title="Sweep: quét biên dạng theo đường dẫn">
-          〰️ Sweep
-        </button>
+        <button className={mode === "sketch" ? "active" : ""} onClick={enterSketch} disabled={mode === "sketch"} title="Tạo Sketch mới">✏️ Sketch</button>
+        <button onClick={() => selected && openExtrude(selected.id)} disabled={!canSolid} title="Đùn sketch đã chọn">⬆️ Extrude</button>
+        <button onClick={() => selected && openRevolve(selected.id)} disabled={!canSolid} title="Xoay tròn sketch đã chọn">🔄 Revolve</button>
       </div>
 
-      <div className="tool-group">
-        <button onClick={() => startEdgeSelect("fillet")} disabled={!hasSolid} title="Bo cạnh (chọn cạnh, hoặc tất cả)">⌒ Fillet</button>
-        <button onClick={() => startEdgeSelect("chamfer")} disabled={!hasSolid} title="Vát cạnh (chọn cạnh, hoặc tất cả)">◣ Chamfer</button>
-        <button onClick={startShell} disabled={!hasSolid} title="Khoét rỗng khối (chọn mặt để hở)">▢ Shell</button>
-        <button onClick={startDraft} disabled={!hasSolid} title="Vát nghiêng mặt (draft cho khuôn đúc)">◹ Draft</button>
-      </div>
+      <Menu label="🧱 Dựng hình" title="Loft / Sweep / Ren / Text / Mặt phẳng">
+        <button className="tb-item" onClick={openLoft} disabled={!canLoft}>🪜 Loft (nối ≥2 sketch)</button>
+        <button className="tb-item" onClick={openSweep} disabled={!canLoft}>〰️ Sweep (quét theo đường dẫn)</button>
+        <button className="tb-item" onClick={addThread}>🌀 Ren xoắn</button>
+        <button className="tb-item" onClick={onAddText}>🔤 Text (khắc/đắp chữ)</button>
+        <button className="tb-item" onClick={addRefPlane}>▭ Mặt phẳng tham chiếu</button>
+      </Menu>
 
-      <div className="tool-group">
-        <button onClick={() => addBodyOp("mirrorBody")} disabled={!hasSolid} title="Soi gương khối qua mặt phẳng">🪞 Mirror</button>
-        <button onClick={() => addBodyOp("patternLinear")} disabled={!hasSolid} title="Sao chép khối thành dãy thẳng">▦ Pattern thẳng</button>
-        <button onClick={() => addBodyOp("patternCircular")} disabled={!hasSolid} title="Sao chép khối quanh trục">🔄 Pattern tròn</button>
-      </div>
+      <Menu label="🛠 Sửa khối" title="Fillet / Chamfer / Shell / Draft">
+        <button className="tb-item" onClick={() => startEdgeSelect("fillet")} disabled={!hasSolid}>⌒ Fillet (bo cạnh)</button>
+        <button className="tb-item" onClick={() => startEdgeSelect("chamfer")} disabled={!hasSolid}>◣ Chamfer (vát cạnh)</button>
+        <button className="tb-item" onClick={startShell} disabled={!hasSolid}>▢ Shell (khoét rỗng)</button>
+        <button className="tb-item" onClick={startDraft} disabled={!hasSolid}>◹ Draft (vát nghiêng)</button>
+      </Menu>
 
-      <div className="tool-group">
-        <button onClick={addThread} title="Ren xoắn ngoài (helix thật) — tạo thành khối ren riêng">🌀 Ren</button>
-        <button onClick={onAddText} title="Khắc/đắp chữ — chuyển chữ thành biên dạng rồi đùn">🔤 Text</button>
-        <button onClick={addRefPlane} title="Tạo mặt phẳng tham chiếu (datum) để vẽ sketch trên đó">▭ Mặt phẳng</button>
-      </div>
+      <Menu label="🔁 Mảng" title="Mirror / Pattern">
+        <button className="tb-item" onClick={() => addBodyOp("mirrorBody")} disabled={!hasSolid}>🪞 Mirror (soi gương)</button>
+        <button className="tb-item" onClick={() => addBodyOp("patternLinear")} disabled={!hasSolid}>▦ Pattern thẳng</button>
+        <button className="tb-item" onClick={() => addBodyOp("patternCircular")} disabled={!hasSolid}>🔄 Pattern tròn</button>
+      </Menu>
 
       <div className="tool-group">
         <button onClick={undo} disabled={!canUndo} title="Hoàn tác (Ctrl+Z)">↩︎</button>
         <button onClick={redo} disabled={!canRedo} title="Làm lại (Ctrl+Y)">↪︎</button>
       </div>
 
-      <div className="tool-group">
-        <button className="ai-btn" onClick={openProjects} title="Dự án đám mây: tạo / mở / lưu theo tài khoản">☁ Dự án</button>
-        <button onClick={saveProject} title="Lưu ra file .json trên máy">💾 Lưu file</button>
-        <button onClick={() => fileRef.current?.click()} title="Mở file .json từ máy">📂 Mở file</button>
-        <button onClick={() => importRef.current?.click()} title="Nhập file STEP/STL để vẽ tiếp trên đó">📥 Nhập STEP/STL</button>
-        <button onClick={() => exportModel("step")} disabled={!hasSolid} title="Xuất STEP">⬇ STEP</button>
-        <button onClick={() => exportModel("stl")} disabled={!hasSolid} title="Xuất STL (in 3D)">⬇ STL</button>
-        <input ref={fileRef} type="file" accept=".json,application/json" style={{ display: "none" }} onChange={onOpenFile} />
-        <input ref={importRef} type="file" accept=".step,.stp,.stl" style={{ display: "none" }} onChange={onImportFile} />
-      </div>
+      <Menu label="📁 Tệp" title="Dự án đám mây / Lưu / Mở / Nhập / Xuất">
+        <button className="tb-item" onClick={openProjects}>☁ Dự án đám mây</button>
+        <div className="tb-sep" />
+        <button className="tb-item" onClick={saveProject}>💾 Lưu file (.json)</button>
+        <button className="tb-item" onClick={() => fileRef.current?.click()}>📂 Mở file (.json)</button>
+        <button className="tb-item" onClick={() => importRef.current?.click()}>📥 Nhập STEP/STL</button>
+        <div className="tb-sep" />
+        <button className="tb-item" onClick={() => exportModel("step")} disabled={!hasSolid}>⬇ Xuất STEP</button>
+        <button className="tb-item" onClick={() => exportModel("stl")} disabled={!hasSolid}>⬇ Xuất STL (in 3D)</button>
+      </Menu>
 
-      <div className="tool-group">
-        <button className="ai-btn" onClick={openAiDraw} title="Nhập mô tả, AI tự dựng khối 3D">
-          🪄 AI vẽ
-        </button>
-        <button className="ai-btn" onClick={openChat} title="Mở trợ lý AI (Claude) để hỏi đáp về mô hình">
-          💬 Trợ lý AI
-        </button>
-        <button onClick={evaluateDrawing} disabled={features.length === 0} title="Nhờ AI đánh giá bản vẽ hiện tại">
-          ✨ Đánh giá
-        </button>
-        <button onClick={explainSelected} disabled={mode !== "model" || !selectedId} title="Nhờ AI giải thích feature đang chọn trong cây tính năng">
-          🔍 Giải thích
-        </button>
-        <button onClick={askClaudeAi} disabled={features.length === 0} title="Tải ảnh + copy nội dung để hỏi trên claude.ai (dùng gói Pro/Max, miễn phí)">
-          📋 Claude.ai
-        </button>
-      </div>
+      <Menu label="✨ AI" title="Trợ lý AI / vẽ / đánh giá">
+        <button className="tb-item" onClick={openChat}>💬 Trợ lý AI</button>
+        <button className="tb-item" onClick={openAiDraw}>🪄 AI vẽ từ mô tả</button>
+        <button className="tb-item" onClick={evaluateDrawing} disabled={features.length === 0}>✨ Đánh giá bản vẽ</button>
+        <button className="tb-item" onClick={explainSelected} disabled={mode !== "model" || !selectedId}>🔍 Giải thích feature</button>
+        <button className="tb-item" onClick={askClaudeAi} disabled={features.length === 0}>📋 Hỏi qua Claude.ai</button>
+      </Menu>
 
-      <span className="mode-badge">Chế độ: {mode === "sketch" ? "Sketch" : "Model"}</span>
+      <input ref={fileRef} type="file" accept=".json,application/json" style={{ display: "none" }} onChange={onOpenFile} />
+      <input ref={importRef} type="file" accept=".step,.stp,.stl" style={{ display: "none" }} onChange={onImportFile} />
+
+      <span className="mode-badge">{mode === "sketch" ? "Sketch" : "Model"}</span>
 
       <div className="tool-group toolbar-right">
         <CloudSaveIndicator />
