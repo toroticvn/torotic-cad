@@ -159,6 +159,9 @@ interface AppState {
   saveCloudProject: (ten?: string) => Promise<void>;
   renameCloudProject: (id: number, ten: string) => Promise<void>;
   deleteCloudProject: (id: number) => Promise<void>;
+  /** Silent debounced save (used by auto-save). Status shown via `saveState`. */
+  saveState: "idle" | "saving" | "saved" | "error";
+  autoSaveProject: () => Promise<void>;
 
   // --- AI draw: generate a model from a text description ---
   aiDrawOpen: boolean;
@@ -629,10 +632,27 @@ export const useViewportStore = create<AppState>((set, get) => ({
       });
       const d = await r.json().catch(() => ({}));
       if (!r.ok) throw new Error(d.error || `Lỗi (${r.status}).`);
-      set({ cloudProjectId: id, cloudProjectName: name, projectBusy: false });
+      set({ cloudProjectId: id, cloudProjectName: name, projectBusy: false, saveState: "saved" });
       void get().listProjects();
     } catch (e) {
       set({ projectError: "Không lưu được: " + (e as Error).message, projectBusy: false });
+    }
+  },
+  saveState: "idle",
+  autoSaveProject: async () => {
+    const { authUser, cloudProjectId, features } = get();
+    if (!authUser || !cloudProjectId) return;
+    set({ saveState: "saving" });
+    try {
+      const data = JSON.stringify({ version: 1, features });
+      const r = await fetch("/api/projects", {
+        method: "POST", headers: { "content-type": "application/json" },
+        body: JSON.stringify({ action: "save", id: cloudProjectId, data }),
+      });
+      if (!r.ok) throw new Error();
+      set({ saveState: "saved" });
+    } catch {
+      set({ saveState: "error" });
     }
   },
   renameCloudProject: async (id, ten) => {

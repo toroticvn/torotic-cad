@@ -1212,3 +1212,19 @@ body,
 .proj-item-actions { display: flex; gap: 6px; }
 .proj-item-actions button { padding: 4px 10px; border: 1px solid var(--border); background: var(--panel); border-radius: 6px; cursor: pointer; font-size: 13px; }
 .proj-item-actions button:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+
+.cloud-save-indicator {
+  font-size: 12px;
+  color: var(--muted);
+  padding: 3px 10px;
+  border: 1px solid var(--border-soft);
+  border-radius: 14px;
+  background: var(--panel);
+  white-space: nowrap;
+  max-width: 260px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.cloud-save-indicator.css-saving { color: var(--accent); border-color: var(--accent-soft); }
+.cloud-save-indicator.css-saved { color: var(--ok); }
+.cloud-save-indicator.css-error { color: var(--danger); border-color: #f3c0c0; }

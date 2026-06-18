@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 import { useViewportStore } from "../state/store";
 import { AccountButton } from "./AccountButton";
+import { CloudSaveIndicator } from "./CloudSaveIndicator";
 
 export function Toolbar() {
   const mode = useViewportStore((s) => s.mode);
@@ -156,6 +157,7 @@ export function Toolbar() {
       <span className="mode-badge">Chế độ: {mode === "sketch" ? "Sketch" : "Model"}</span>
 
       <div className="tool-group toolbar-right">
+        <CloudSaveIndicator />
         <AccountButton />
       </div>
     </div>
