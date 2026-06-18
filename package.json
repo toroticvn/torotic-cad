@@ -5,9 +5,9 @@
   "type": "module",
   "description": "Parametric 3D CAD in the browser (SolidWorks-style sketch + feature modeling)",
   "scripts": {
-    "dev": "vite",
+    "dev": "cross-env NODE_OPTIONS=--use-system-ca vite",
     "build": "tsc -b && vite build",
-    "preview": "vite preview",
+    "preview": "cross-env NODE_OPTIONS=--use-system-ca vite preview",
     "test": "tsx src/sketch/mirrorSketch.test.ts && tsx src/sketch/pointOnLine.test.ts && tsx src/sketch/arcSlot.runtime.test.ts && tsx src/kernel/mirror.runtime.test.ts && tsx src/ai/aiDesign.runtime.test.ts && tsx src/kernel/rebuild.runtime.test.ts && tsx src/kernel/profile.runtime.test.ts && tsx src/kernel/thread.runtime.test.ts",
     "test:mirror": "tsx src/sketch/mirrorSketch.test.ts && tsx src/kernel/mirror.runtime.test.ts"
   },
@@ -26,6 +26,7 @@
     "@types/react-dom": "^18.3.1",
     "@types/three": "^0.169.0",
     "@vitejs/plugin-react": "^4.3.3",
+    "cross-env": "^10.1.0",
     "tsx": "^4.19.2",
     "typescript": "^5.6.3",
     "vite": "^5.4.10"
