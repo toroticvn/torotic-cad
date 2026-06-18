@@ -143,6 +143,10 @@ interface AppState {
   login: (email: string, password: string) => Promise<boolean>;
   signup: (email: string, password: string, ten: string) => Promise<boolean>;
   logout: () => Promise<void>;
+  pwOpen: boolean;
+  openPwChange: () => void;
+  closePwChange: () => void;
+  changePassword: (oldPw: string, newPw: string) => Promise<boolean>;
 
   // --- Dự án đám mây (D1 metadata + R2 nội dung) ---
   cloudProjectId: number | null;
@@ -544,6 +548,26 @@ export const useViewportStore = create<AppState>((set, get) => ({
       /* ignore */
     }
     set({ authUser: null });
+  },
+  pwOpen: false,
+  openPwChange: () => set({ pwOpen: true, authError: null }),
+  closePwChange: () => set({ pwOpen: false }),
+  changePassword: async (oldPw, newPw) => {
+    set({ authBusy: true, authError: null });
+    try {
+      const r = await fetch("/api/auth", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ action: "change_password", oldPassword: oldPw, newPassword: newPw }),
+      });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(d.error || `Lỗi máy chủ (${r.status}).`);
+      set({ authBusy: false, pwOpen: false });
+      return true;
+    } catch (e) {
+      set({ authError: (e as Error).message, authBusy: false });
+      return false;
+    }
   },
 
   cloudProjectId: null,

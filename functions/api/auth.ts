@@ -40,6 +40,22 @@ export const onRequestPost = async (ctx: { request: Request; env: Env }): Promis
     return json({ ok: true }, 200, { "set-cookie": clearCookie() });
   }
 
+  if (action === "change_password") {
+    const me = await currentUser(request, env.DB);
+    if (!me) return json({ error: "Chưa đăng nhập." }, 401);
+    const oldPw = String(body.oldPassword ?? "");
+    const newPw = String(body.newPassword ?? "");
+    if (newPw.length < 6) return json({ error: "Mật khẩu mới tối thiểu 6 ký tự." }, 400);
+    const row = await env.DB.prepare(`select password_hash from users where id = ?1`).bind(me.id).all<{ password_hash: string }>();
+    const h = row.results?.[0]?.password_hash;
+    if (!h || !(await verifyPassword(oldPw, h))) return json({ error: "Mật khẩu hiện tại không đúng." }, 401);
+    await env.DB.prepare(`update users set password_hash = ?1 where id = ?2`).bind(await hashPassword(newPw), me.id).run();
+    // đăng xuất các phiên khác cho an toàn (giữ phiên hiện tại)
+    const token = getCookie(request, COOKIE);
+    if (token) await env.DB.prepare(`delete from sessions where user_id = ?1 and token != ?2`).bind(me.id, token).run();
+    return json({ ok: true });
+  }
+
   const email = String(body.email ?? "").trim().toLowerCase();
   const password = String(body.password ?? "");
 

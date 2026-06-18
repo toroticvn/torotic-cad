@@ -4,6 +4,7 @@ import { useViewportStore } from "../state/store";
 export function AccountButton() {
   const user = useViewportStore((s) => s.authUser);
   const openAuth = useViewportStore((s) => s.openAuth);
+  const openPwChange = useViewportStore((s) => s.openPwChange);
   const logout = useViewportStore((s) => s.logout);
 
   if (!user) {
@@ -12,6 +13,7 @@ export function AccountButton() {
   return (
     <span className="account-area" title={user.email}>
       <span className="account-name">👤 {user.ten || user.email}</span>
+      <button onClick={openPwChange} title="Đổi mật khẩu">🔑</button>
       <button onClick={() => void logout()} title="Đăng xuất">Đăng xuất</button>
     </span>
   );
