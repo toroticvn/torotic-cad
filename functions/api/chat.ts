@@ -47,7 +47,7 @@ const DEEPSEEK_MODEL = "deepseek-chat";
  */
 /** Bỏ dấu + đ→d + thường hoá, để so khớp từ khoá không lệ thuộc kiểu gõ dấu (NFC/NFD). */
 function noAccent(s: string): string {
-  return (s || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/đ/g, "d");
+  return (s || "").toLowerCase().normalize("NFD").replace(/\p{M}/gu, "").replace(/đ/g, "d");
 }
 function isComplexTask(text: string, hasImage: boolean): boolean {
   const t = noAccent(text);
