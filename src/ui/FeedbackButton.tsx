@@ -38,6 +38,7 @@ const MODULES = ["Sketch", "Khối / Feature", "Trợ lý AI", "Nhập / Xuất"
 export function FeedbackButton() {
   const viewport = useViewportStore((s) => s.viewport);
   const features = useViewportStore((s) => s.features);
+  const chatOpen = useViewportStore((s) => s.chatOpen);
 
   const [open, setOpen] = useState(false);
   const [loai, setLoai] = useState<"bao_loi" | "tinh_nang">("bao_loi");
@@ -104,7 +105,7 @@ export function FeedbackButton() {
 
   return (
     <>
-      <button className="feedback-fab" title="Báo lỗi / Góp ý" onClick={() => { reset(); setOpen(true); }}>
+      <button className={"feedback-fab" + (chatOpen ? " fab-left" : "")} title="Báo lỗi / Góp ý" onClick={() => { reset(); setOpen(true); }}>
         🐞 Báo lỗi
       </button>
 
