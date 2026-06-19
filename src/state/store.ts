@@ -447,7 +447,7 @@ export const useViewportStore = create<AppState>((set, get) => ({
         }
       }
 
-      set({ chatMessages: [...messages, { role: "assistant", text }], chatBusy: false });
+      set({ chatMessages: [...messages, { role: "assistant", text, model: reply.model }], chatBusy: false });
     } catch (e) {
       set({ chatError: (e as Error).message, chatBusy: false });
     }

@@ -1276,3 +1276,5 @@ body,
 
 /* Khi chat (docked phải) mở, đẩy nút Báo lỗi sang trái để không đè nút Gửi */
 .feedback-fab.fab-left { right: auto; left: 18px; }
+
+.chat-model { margin-top: 6px; font-size: 11px; color: var(--muted); opacity: 0.8; }

@@ -73,7 +73,7 @@ export function ChatPanel() {
   return (
     <div className="chat-panel">
       <div className="chat-head">
-        <span className="chat-title">💬 Trợ lý AI (Claude)</span>
+        <span className="chat-title">💬 Trợ lý AI</span>
         <button className="chat-close" onClick={close} title="Đóng">✕</button>
       </div>
 
@@ -93,11 +93,14 @@ export function ChatPanel() {
         {messages.map((m, i) => (
           <div key={i} className={`chat-msg ${m.role}`}>
             {m.role === "assistant" ? <Markdown text={m.text} /> : m.text}
+            {m.role === "assistant" && m.model && (
+              <div className="chat-model">{m.model === "deepseek" ? "⚡ DeepSeek" : "🧠 Claude"}</div>
+            )}
           </div>
         ))}
         {busy && (
           <div className="chat-msg assistant chat-status">
-            <span className="ai-spinner" /> Claude đang suy nghĩ…
+            <span className="ai-spinner" /> AI đang xử lý…
           </div>
         )}
         {error && <div className="chat-error">⚠️ {error}</div>}

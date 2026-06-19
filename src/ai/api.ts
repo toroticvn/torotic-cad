@@ -4,12 +4,16 @@ import type { Design } from "./design";
 export interface ChatTurn {
   role: "user" | "assistant";
   text: string;
+  /** Which model answered this assistant turn ("deepseek" | "claude"), for display. */
+  model?: string;
 }
 
 export interface ChatReply {
   text: string;
-  /** When set, Claude chose to draw/modify — apply this design on the client. */
+  /** When set, the AI chose to draw/modify — apply this design on the client. */
   design?: Design | null;
+  /** Which model produced this reply. */
+  model?: string;
 }
 
 /**
@@ -29,7 +33,7 @@ export async function chat(messages: ChatTurn[], image: string, features: Featur
     throw new Error("Không kết nối được máy chủ AI: " + (e as Error).message);
   }
 
-  let data: { text?: string; design?: Design | null; error?: string } = {};
+  let data: { text?: string; design?: Design | null; error?: string; model?: string } = {};
   try {
     data = await resp.json();
   } catch {
@@ -42,7 +46,7 @@ export async function chat(messages: ChatTurn[], image: string, features: Featur
     }
     throw new Error(data.error || `Máy chủ lỗi (${resp.status}).`);
   }
-  return { text: data.text || "(Không có nội dung.)", design: data.design ?? null };
+  return { text: data.text || "(Không có nội dung.)", design: data.design ?? null, model: data.model };
 }
 
 /** Ask Claude (via /api/generate, tool use) to design a 3D part from a description. */

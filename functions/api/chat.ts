@@ -14,6 +14,8 @@ import { type D1Database, currentUser } from "../_lib/auth";
 
 interface Env {
   ANTHROPIC_API_KEY?: string;
+  /** DeepSeek (OpenAI-compatible) — dùng cho tác vụ đơn giản; rẻ/nhanh. */
+  DEEPSEEK_API_KEY?: string;
   DB?: D1Database;
   /**
    * Optional Cloudflare AI Gateway base URL for Anthropic, e.g.
@@ -37,6 +39,72 @@ interface ChatBody {
 }
 
 const MODEL = "claude-opus-4-8";
+const DEEPSEEK_MODEL = "deepseek-chat";
+
+/**
+ * Định tuyến: tác vụ ĐƠN GIẢN (vẽ/hướng dẫn nhanh) → DeepSeek; tác vụ PHỨC TẠP
+ * (đánh giá/DFM/phân tích/cần "nhìn" ảnh/mô tả dài) → Claude để suy luận sâu.
+ */
+function isComplexTask(text: string, hasImage: boolean): boolean {
+  const t = (text || "").toLowerCase();
+  const kw = [
+    "đánh giá", "phân tích", "tối ưu", "so sánh", "vì sao", "tại sao", "kiểm tra",
+    "review", "dfm", "chế tạo", "cải tiến", "gợi ý", "tư vấn", "giải thích",
+    "nghĩ kỹ", "phức tạp", "claude", "vì sao", "lắp ráp", "dung sai",
+  ];
+  if (kw.some((k) => t.includes(k))) return true;
+  if (hasImage && /(nhìn|ảnh|hình này|xem|trong hình|bản vẽ)/.test(t)) return true;
+  if (t.length > 280) return true;
+  return false;
+}
+
+/** Gọi Claude (qua AI Gateway nếu có); trả {text, design}. */
+async function callClaude(env: Env, system: string, messages: unknown[]): Promise<{ text: string; design: unknown }> {
+  let endpoint = "https://api.anthropic.com/v1/messages";
+  if (env.CF_AI_GATEWAY) {
+    const base = env.CF_AI_GATEWAY.replace(/\/+$/, "").replace(/\/v1\/messages$/, "");
+    endpoint = `${base}/v1/messages`;
+  }
+  const resp = await fetch(endpoint, {
+    method: "POST",
+    headers: { "x-api-key": env.ANTHROPIC_API_KEY ?? "", "anthropic-version": "2023-06-01", "content-type": "application/json" },
+    body: JSON.stringify({ model: MODEL, max_tokens: 4000, thinking: { type: "adaptive" }, output_config: { effort: "medium" }, system, tools: [APPLY_DESIGN_TOOL], messages }),
+  });
+  if (!resp.ok) {
+    const d = await resp.text().catch(() => "");
+    throw new Error(`Claude API lỗi (${resp.status}). ${d.slice(0, 300)}`);
+  }
+  const data = (await resp.json()) as { stop_reason?: string; content?: Array<{ type: string; text?: string; name?: string; input?: unknown }> };
+  if (data.stop_reason === "refusal") throw new Error("Claude từ chối xử lý yêu cầu này.");
+  const blocks = data.content ?? [];
+  const text = blocks.filter((b) => b.type === "text" && typeof b.text === "string").map((b) => b.text as string).join("\n").trim();
+  const toolUse = blocks.find((b) => b.type === "tool_use" && b.name === "apply_design");
+  return { text: text || (toolUse ? "Đã cập nhật mô hình." : "(Không có nội dung trả về.)"), design: toolUse?.input ?? null };
+}
+
+/** Gọi DeepSeek (OpenAI-compatible, function calling); trả {text, design}. Không có vision. */
+async function callDeepSeek(env: Env, system: string, turns: ChatTurn[]): Promise<{ text: string; design: unknown }> {
+  const tools = [{ type: "function", function: { name: APPLY_DESIGN_TOOL.name, description: APPLY_DESIGN_TOOL.description, parameters: APPLY_DESIGN_TOOL.input_schema } }];
+  const messages = [{ role: "system", content: system }, ...turns.map((t) => ({ role: t.role, content: t.text }))];
+  const resp = await fetch("https://api.deepseek.com/chat/completions", {
+    method: "POST",
+    headers: { "content-type": "application/json", authorization: `Bearer ${env.DEEPSEEK_API_KEY}` },
+    body: JSON.stringify({ model: DEEPSEEK_MODEL, messages, tools, tool_choice: "auto", max_tokens: 4000, temperature: 0.2 }),
+  });
+  if (!resp.ok) {
+    const d = await resp.text().catch(() => "");
+    throw new Error(`DeepSeek lỗi (${resp.status}). ${d.slice(0, 300)}`);
+  }
+  const data = (await resp.json()) as { choices?: Array<{ message?: { content?: string; tool_calls?: Array<{ function?: { name?: string; arguments?: string } }> } }> };
+  const msg = data.choices?.[0]?.message ?? {};
+  const text = (msg.content ?? "").trim();
+  let design: unknown = null;
+  const call = (msg.tool_calls ?? []).find((c) => c.function?.name === "apply_design");
+  if (call?.function?.arguments) {
+    try { design = JSON.parse(call.function.arguments); } catch { /* bỏ qua nếu JSON hỏng */ }
+  }
+  return { text: text || (design ? "Đã cập nhật mô hình." : "(Không có nội dung trả về.)"), design };
+}
 
 const SYSTEM_PROMPT = `Bạn là trợ lý kỹ sư cơ khí tích hợp trong phần mềm CAD 3D "Torotic CAD".
 
@@ -210,11 +278,11 @@ function parseDataUrl(s?: string): { mediaType: string; base64: string } | null 
 export const onRequestPost = async (context: { request: Request; env: Env }): Promise<Response> => {
   const { request, env } = context;
 
-  if (!env.ANTHROPIC_API_KEY) {
+  if (!env.ANTHROPIC_API_KEY && !env.DEEPSEEK_API_KEY) {
     return json(
       {
         error:
-          "Máy chủ chưa cấu hình ANTHROPIC_API_KEY. Tạo API key + nạp credit ở console.anthropic.com, rồi thêm biến này trong Cloudflare Pages → Settings → Variables và deploy lại.",
+          "Máy chủ chưa cấu hình AI key nào. Thêm ANTHROPIC_API_KEY (Claude) và/hoặc DEEPSEEK_API_KEY (DeepSeek) trong Cloudflare Pages → Settings → Variables rồi deploy lại.",
       },
       500,
     );
@@ -251,7 +319,11 @@ export const onRequestPost = async (context: { request: Request; env: Env }): Pr
     }
   }
 
-  const messages = turns.map((m, i) => {
+  // Text-only turns (DeepSeek không có vision); turn user cuối mang theo bối cảnh.
+  const textTurns: ChatTurn[] = turns.map((m, i) => ({ role: m.role, text: i === lastUser ? m.text + contextNote : m.text }));
+
+  // Anthropic-format messages (Claude nhận kèm ảnh viewport).
+  const claudeMessages = turns.map((m, i) => {
     if (i === lastUser) {
       const content: Array<Record<string, unknown>> = [];
       if (img) content.push({ type: "image", source: { type: "base64", media_type: img.mediaType, data: img.base64 } });
@@ -261,60 +333,27 @@ export const onRequestPost = async (context: { request: Request; env: Env }): Pr
     return { role: m.role, content: m.text };
   });
 
-  let endpoint = "https://api.anthropic.com/v1/messages";
-  if (env.CF_AI_GATEWAY) {
-    // Tolerate either the base (…/anthropic) or the full (…/anthropic/v1/messages) URL.
-    const base = env.CF_AI_GATEWAY.replace(/\/+$/, "").replace(/\/v1\/messages$/, "");
-    endpoint = `${base}/v1/messages`;
-  }
+  // Quyết định model: phức tạp → Claude (sâu); đơn giản → DeepSeek (rẻ/nhanh).
+  const lastText = lastUser >= 0 ? turns[lastUser].text : "";
+  const complex = isComplexTask(lastText, !!img);
+  const canClaude = !!env.ANTHROPIC_API_KEY;
+  const canDeep = !!env.DEEPSEEK_API_KEY;
+  let provider: "claude" | "deepseek" = complex ? (canClaude ? "claude" : "deepseek") : (canDeep ? "deepseek" : "claude");
+  if (provider === "claude" && !canClaude) provider = "deepseek";
+  if (provider === "deepseek" && !canDeep) provider = "claude";
 
-  let resp: Response;
   try {
-    resp = await fetch(endpoint, {
-      method: "POST",
-      headers: {
-        "x-api-key": env.ANTHROPIC_API_KEY,
-        "anthropic-version": "2023-06-01",
-        "content-type": "application/json",
-      },
-      body: JSON.stringify({
-        model: MODEL,
-        max_tokens: 4000,
-        thinking: { type: "adaptive" },
-        output_config: { effort: "medium" },
-        system: SYSTEM_PROMPT,
-        tools: [APPLY_DESIGN_TOOL],
-        messages,
-      }),
-    });
+    let out: { text: string; design: unknown };
+    try {
+      out = provider === "deepseek" ? await callDeepSeek(env, SYSTEM_PROMPT, textTurns) : await callClaude(env, SYSTEM_PROMPT, claudeMessages);
+    } catch (e) {
+      // Lỗi provider chính → thử provider còn lại (nếu có key).
+      if (provider === "deepseek" && canClaude) { out = await callClaude(env, SYSTEM_PROMPT, claudeMessages); provider = "claude"; }
+      else if (provider === "claude" && canDeep) { out = await callDeepSeek(env, SYSTEM_PROMPT, textTurns); provider = "deepseek"; }
+      else throw e;
+    }
+    return json({ ...out, model: provider });
   } catch (e) {
-    return json({ error: "Không gọi được Claude API: " + (e as Error).message }, 502);
+    return json({ error: "Không gọi được AI: " + (e as Error).message }, 502);
   }
-
-  if (!resp.ok) {
-    const detail = await resp.text().catch(() => "");
-    return json({ error: `Claude API lỗi (${resp.status}). ${detail.slice(0, 400)}` }, 502);
-  }
-
-  const data = (await resp.json()) as {
-    stop_reason?: string;
-    content?: Array<{ type: string; text?: string; name?: string; input?: unknown }>;
-  };
-  if (data.stop_reason === "refusal") return json({ error: "Claude từ chối xử lý yêu cầu này." }, 422);
-
-  const blocks = data.content ?? [];
-  const text = blocks
-    .filter((b) => b.type === "text" && typeof b.text === "string")
-    .map((b) => b.text as string)
-    .join("\n")
-    .trim();
-
-  // If Claude chose to draw, it called apply_design — hand the design to the client.
-  const toolUse = blocks.find((b) => b.type === "tool_use" && b.name === "apply_design");
-  const design = toolUse?.input ?? null;
-
-  return json({
-    text: text || (design ? "Đã cập nhật mô hình." : "(Không có nội dung trả về.)"),
-    design,
-  });
 };
