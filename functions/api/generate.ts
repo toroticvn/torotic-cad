@@ -10,9 +10,12 @@
  * 403). Key stays server-side.
  */
 
+import { type D1Database, currentUser } from "../_lib/auth";
+
 interface Env {
   ANTHROPIC_API_KEY?: string;
   CF_AI_GATEWAY?: string;
+  DB?: D1Database;
 }
 
 const MODEL = "claude-opus-4-8";
@@ -73,6 +76,10 @@ export const onRequestPost = async (context: { request: Request; env: Env }): Pr
   const { request, env } = context;
   if (!env.ANTHROPIC_API_KEY) {
     return json({ error: "Máy chủ chưa cấu hình ANTHROPIC_API_KEY." }, 500);
+  }
+  // Chỉ cho tài khoản đã đăng nhập dùng AI (chống lạm dụng / đốt credit).
+  if (!env.DB || !(await currentUser(request, env.DB))) {
+    return json({ error: "Vui lòng đăng nhập để dùng tính năng AI." }, 401);
   }
 
   let body: { prompt?: string };

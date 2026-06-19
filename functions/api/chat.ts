@@ -10,8 +10,11 @@
  * ANTHROPIC_API_KEY binding and is never sent to the browser.
  */
 
+import { type D1Database, currentUser } from "../_lib/auth";
+
 interface Env {
   ANTHROPIC_API_KEY?: string;
+  DB?: D1Database;
   /**
    * Optional Cloudflare AI Gateway base URL for Anthropic, e.g.
    * https://gateway.ai.cloudflare.com/v1/<account_id>/<gateway>/anthropic
@@ -215,6 +218,10 @@ export const onRequestPost = async (context: { request: Request; env: Env }): Pr
       },
       500,
     );
+  }
+  // Chỉ cho tài khoản đã đăng nhập dùng AI (chống lạm dụng / đốt credit).
+  if (!env.DB || !(await currentUser(request, env.DB))) {
+    return json({ error: "Vui lòng đăng nhập để dùng Trợ lý AI." }, 401);
   }
 
   let body: ChatBody;

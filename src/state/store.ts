@@ -375,12 +375,16 @@ export const useViewportStore = create<AppState>((set, get) => ({
   chatError: null,
   chatMessages: [],
 
-  openChat: () => set({ chatOpen: true, chatError: null }),
+  openChat: () => {
+    if (!get().authUser) { set({ authOpen: true }); return; }
+    set({ chatOpen: true, chatError: null });
+  },
   closeChat: () => set({ chatOpen: false }),
 
   sendChat: async (text) => {
     const t = text.trim();
     if (!t || get().chatBusy) return;
+    if (!get().authUser) { set({ chatOpen: true, chatError: "Vui lòng đăng nhập để dùng Trợ lý AI.", authOpen: true }); return; }
     const vp = get().viewport;
     if (!vp) return;
     const messages: ChatTurn[] = [...get().chatMessages, { role: "user", text: t }];
@@ -707,11 +711,15 @@ export const useViewportStore = create<AppState>((set, get) => ({
   aiDrawOpen: false,
   aiDrawBusy: false,
   aiDrawError: null,
-  openAiDraw: () => set({ aiDrawOpen: true, aiDrawError: null }),
+  openAiDraw: () => {
+    if (!get().authUser) { set({ authOpen: true }); return; }
+    set({ aiDrawOpen: true, aiDrawError: null });
+  },
   closeAiDraw: () => set({ aiDrawOpen: false }),
   generateDesign: async (prompt) => {
     const p = prompt.trim();
     if (!p || get().aiDrawBusy) return;
+    if (!get().authUser) { set({ aiDrawError: "Vui lòng đăng nhập để dùng AI vẽ.", authOpen: true }); return; }
     set({ aiDrawBusy: true, aiDrawError: null });
     try {
       const design = await requestDesign(p);
@@ -1134,6 +1142,7 @@ export const useViewportStore = create<AppState>((set, get) => ({
   },
 
   exportModel: async (format) => {
+    if (!get().authUser) { set({ featureError: "Vui lòng đăng nhập để xuất file.", authOpen: true }); return; }
     if (!get().features.some(producesSolid)) {
       set({ featureError: "Chưa có khối nào để xuất." });
       return;
