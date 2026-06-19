@@ -45,15 +45,19 @@ const DEEPSEEK_MODEL = "deepseek-chat";
  * Định tuyến: tác vụ ĐƠN GIẢN (vẽ/hướng dẫn nhanh) → DeepSeek; tác vụ PHỨC TẠP
  * (đánh giá/DFM/phân tích/cần "nhìn" ảnh/mô tả dài) → Claude để suy luận sâu.
  */
+/** Bỏ dấu + đ→d + thường hoá, để so khớp từ khoá không lệ thuộc kiểu gõ dấu (NFC/NFD). */
+function noAccent(s: string): string {
+  return (s || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/đ/g, "d");
+}
 function isComplexTask(text: string, hasImage: boolean): boolean {
-  const t = (text || "").toLowerCase();
+  const t = noAccent(text);
   const kw = [
-    "đánh giá", "phân tích", "tối ưu", "so sánh", "vì sao", "tại sao", "kiểm tra",
-    "review", "dfm", "chế tạo", "cải tiến", "gợi ý", "tư vấn", "giải thích",
-    "nghĩ kỹ", "phức tạp", "claude", "vì sao", "lắp ráp", "dung sai",
+    "danh gia", "phan tich", "toi uu", "so sanh", "vi sao", "tai sao", "kiem tra",
+    "review", "dfm", "che tao", "cai tien", "goi y", "tu van", "giai thich",
+    "nghi ky", "phuc tap", "claude", "lap rap", "dung sai",
   ];
   if (kw.some((k) => t.includes(k))) return true;
-  if (hasImage && /(nhìn|ảnh|hình này|xem|trong hình|bản vẽ)/.test(t)) return true;
+  if (hasImage && /(nhin|anh|hinh nay|xem|trong hinh|ban ve)/.test(t)) return true;
   if (t.length > 280) return true;
   return false;
 }
